@@ -135,7 +135,7 @@ if __name__ == "__main__":
     # loop through the test_embeddings list
     for i, embedding in enumerate(test_embeddings):
         # create a new subplot
-        ax = fig.add_subplot(1, n_splits, i+1, projection='3d')
+        ax = fig.add_subplot(1, n_splits+1, i+1, projection='3d')
         # plot the embedding
         embedding_data = test_embeddings[i][::10,:]
 
