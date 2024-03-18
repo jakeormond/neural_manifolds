@@ -11,8 +11,8 @@ import torch
 from cebra import CEBRA
 from sklearn.model_selection import KFold
 
-sys.path.append('C:/Users/Jake/Documents/python_code/robot_maze_analysis_code')
-from utilities.get_directories import get_data_dir
+# sys.path.append('C:/Users/Jake/Documents/python_code/robot_maze_analysis_code')
+# from utilities.get_directories import get_data_dir
 
 
 def colormap_2d():
