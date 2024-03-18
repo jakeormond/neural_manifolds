@@ -15,6 +15,25 @@ from sklearn.model_selection import KFold
 # from utilities.get_directories import get_data_dir
 
 
+def create_folds(n_timesteps, num_folds=5, num_windows=4):
+    n_windows_total = num_folds * num_windows
+    window_size = n_timesteps // n_windows_total
+    window_start_ind = np.arange(0, n_timesteps, window_size)
+
+    folds = []
+
+    for i in range(num_folds):
+        test_windows = np.arange(i, n_windows_total, num_folds)
+        test_ind = []
+        for j in test_windows:
+            test_ind.extend(np.arange(window_start_ind[j], window_start_ind[j] + window_size))
+        train_ind = list(set(range(n_timesteps)) - set(test_ind))
+
+        folds.append((train_ind, test_ind))
+
+    return folds
+
+
 def colormap_2d():
     # get the viridis colormap
     v_cmap = plt.get_cmap('viridis')
@@ -82,12 +101,15 @@ if __name__ == "__main__":
 
     # will use k-folds with 5 splits
     n_splits = 5
-    kf = KFold(n_splits=n_splits, shuffle=False)
+    # kf = KFold(n_splits=n_splits, shuffle=False)
+    n_timesteps = inputs.shape[0]
+    folds = create_folds(n_timesteps, num_folds=n_splits, num_windows=4)
     test_embeddings = []
     test_labels = []
 
 
-    for i, (train_index, test_index) in enumerate(kf.split(inputs)):
+    # for i, (train_index, test_index) in enumerate(kf.split(inputs)):
+    for i, (train_index, test_index) in enumerate(folds):
         print(f'Fold {i+1} of {n_splits}')
         X_train, X_test = inputs[train_index,:], inputs[test_index,:]
         y_train, y_test = labels[train_index,:], labels[test_index,:]
