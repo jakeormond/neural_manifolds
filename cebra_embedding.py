@@ -82,7 +82,7 @@ if __name__ == "__main__":
 
     # will use k-folds with 5 splits
     n_splits = 5
-    kf = KFold(n_splits=n_splits, shuffle=True)
+    kf = KFold(n_splits=n_splits, shuffle=False)
     test_embeddings = []
     test_labels = []
 

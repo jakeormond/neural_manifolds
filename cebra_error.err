@@ -1,6 +1,0 @@
-/nfs/nhome/live/jakeo/.conda/envs/cebra_env/lib/python3.10/site-packages/cebra/datasets/__init__.py:103: UserWarning: Could not initialize one or more datasets: No module named 'h5py'. For using the datasets, consider installing the [datasets] extension via pip.
-  warnings.warn(f"Could not initialize one or more datasets: {e}. "
-Traceback (most recent call last):
-  File "/nfs/nhome/live/jakeo/python_code/neural_manifolds/cebra_embedding.py", line 15, in <module>
-    from utilities.get_directories import get_data_dir
-ModuleNotFoundError: No module named 'utilities'
