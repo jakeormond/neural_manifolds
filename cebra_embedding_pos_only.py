@@ -5,14 +5,14 @@ import seaborn as sns
 import pandas as pd
 from matplotlib.collections import LineCollection
 import os
-import cebra.datasets
+# import cebra.datasets
 import cebra
 import torch
 from cebra import CEBRA
 from sklearn.model_selection import KFold
 from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
 import sklearn.metrics
-import pickle
+# import pickle
 
 # sys.path.append('C:/Users/Jake/Documents/python_code/robot_maze_analysis_code')
 # from utilities.get_directories import get_data_dir
@@ -57,11 +57,13 @@ def create_folds_v2(n_timesteps, num_folds=5, num_windows=10):
         folds.append((train_ind, test_ind))
 
     # As a sanity check, plot the distribution of the test indices
-    fig, ax = plt.subplots()
-    ax.hist(train_ind, label='train')
-    ax.hist(test_ind, label='test')
-    ax.legend()
-    plt.show()
+    # fig, ax = plt.subplots()
+    # ax.hist(train_ind, label='train')
+    # ax.hist(test_ind, label='test')
+    # ax.legend()
+    # plt.show()
+        
+    return folds
 
 
 def decoding_pos_dir(emb_train, emb_test, label_train, label_test, n_neighbors=36):
@@ -147,7 +149,7 @@ if __name__ == "__main__":
         n_splits = 5
         # kf = KFold(n_splits=n_splits, shuffle=False)
         n_timesteps = inputs.shape[0]
-        folds = create_folds_v2(n_timesteps, num_folds=n_splits, num_windows=4)
+        folds = create_folds_v2(n_timesteps, num_folds=n_splits, num_windows=10)
 
         # for i, (train_index, test_index) in enumerate(kf.split(inputs)):
         for i, (train_index, test_index) in enumerate(folds):
