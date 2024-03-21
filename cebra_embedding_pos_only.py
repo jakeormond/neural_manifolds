@@ -147,7 +147,7 @@ if __name__ == "__main__":
         n_splits = 5
         # kf = KFold(n_splits=n_splits, shuffle=False)
         n_timesteps = inputs.shape[0]
-        folds = create_folds(n_timesteps, num_folds=n_splits, num_windows=4)
+        folds = create_folds_v2(n_timesteps, num_folds=n_splits, num_windows=4)
 
         # for i, (train_index, test_index) in enumerate(kf.split(inputs)):
         for i, (train_index, test_index) in enumerate(folds):
