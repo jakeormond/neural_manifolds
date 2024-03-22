@@ -143,7 +143,7 @@ if __name__ == "__main__":
         cebra_model_dir = data_dir
         
         # max_iterations = 10000 #default is 5000.
-        max_iterations = 5 #default is 5000.
+        max_iterations = 5000 #default is 5000.
 
         # will use k-folds with 5 splits
         n_splits = 5
