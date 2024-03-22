@@ -9,8 +9,8 @@ import cebra
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
-# sys.path.append('C:/Users/Jake/Documents/python_code/robot_maze_analysis_code')
-sys.path.append('/home/jake/Documents/python_code/robot_maze_analysis_code')
+sys.path.append('C:/Users/Jake/Documents/python_code/robot_maze_analysis_code')
+# sys.path.append('/home/jake/Documents/python_code/robot_maze_analysis_code')
 from utilities.get_directories import get_data_dir
 
 from cebra_embedding import create_folds
@@ -83,97 +83,107 @@ if __name__ == "__main__":
     data_dir = get_data_dir(animal, session)
 
     goal = 52
-    window_size = 100
+    # window_size = 100
+    
 
-    file_name = f'decoding_scores_goal{goal}_ws{window_size}.pkl'
-    file_path = os.path.join(data_dir, file_name)
+    # file_name = f'decoding_scores_goal{goal}_ws{window_size}.pkl'
+    # file_path = os.path.join(data_dir, file_name)
 
-    with open(file_path, 'rb') as f:
-        decoding_scores = pickle.load(f)
+    # with open(file_path, 'rb') as f:
+    #     decoding_scores = pickle.load(f)
 
 
-    ############ LOAD POSITIONAL DATA ################
-    dlc_dir = os.path.join(data_dir, 'deeplabcut')
-    labels_file_name = f'labels_goal{goal}_ws{window_size}'
-    # load numpy array of labels
-    labels = np.load(os.path.join(dlc_dir, labels_file_name + '.npy'))
-    # keep only the first 2 columns
-    labels = labels[:, :2]
 
-    ############ LOAD SPIKE DATA #####################
-    # load numpy array of neural data
-    spike_dir = os.path.join(data_dir, 'spike_sorting')
-    inputs_file_name = f'inputs_goal{goal}_ws{window_size}'
-    inputs = np.load(os.path.join(spike_dir, inputs_file_name + '.npy'))
-
-    # load convert inputs to torch tensor
-    inputs = torch.tensor(inputs, dtype=torch.float32)  
-
-    # will use k-folds with 5 splits
-    n_splits = 5
-    # kf = KFold(n_splits=n_splits, shuffle=False)
-    n_timesteps = inputs.shape[0]
-    folds = create_folds(n_timesteps, num_folds=n_splits, num_windows=4)
-    test_embeddings = []
-    test_labels = []
 
 
     ########## CREATE LIST OF MODELS ###############
-    model_list = ['time3', 'pos3', 'pos_hybrid3', 'pos_shuffled3']
+    # model_list = ['time3', 'pos3', 'pos_hybrid3', 'pos_shuffled3']
+    model_list = ['pos3']
+
+    ########## CREATE LIST OF TIMEWINDOWS #############
+    window_sizes = [25, 50, 100, 250, 500]
 
 
     ########## CREATE FIGURE OF EMBEDDINGS AND DECODING #######################
     for m in model_list:
-        # create figure with 3 rows and 6 columns
-        fig = plt.figure(figsize=(24, 24), dpi=100)
-        colormap = colormap_2d()  
-        
+        for window_size in window_sizes:
+            ############ LOAD POSITIONAL DATA ################
+            dlc_dir = os.path.join(data_dir, 'deeplabcut', 'labels_for_embedding_and_decoding')
+            labels_file_name = f'labels_goal{goal}_ws{window_size}'
+            # load numpy array of labels
+            labels = np.load(os.path.join(dlc_dir, labels_file_name + '.npy'))
+            # keep only the first 2 columns
+            labels = labels[:, :2]
 
-        for i, (train_index, test_index) in enumerate(folds):
-            model, model_name = load_cebra_model(m, data_dir, goal, window_size, i)
+            ############ LOAD SPIKE DATA #####################
+            # load numpy array of neural data
+            spike_dir = os.path.join(data_dir, 'spike_sorting', 'inputs_for_embedding_and_decoding')
+            inputs_file_name = f'inputs_goal{goal}_ws{window_size}'
+            inputs = np.load(os.path.join(spike_dir, inputs_file_name + '.npy'))
+
+            # load convert inputs to torch tensor
+            inputs = torch.tensor(inputs, dtype=torch.float32)  
+
+            # will use k-folds with 5 splits
+            n_splits = 5
+            # kf = KFold(n_splits=n_splits, shuffle=False)
+            n_timesteps = inputs.shape[0]
+            folds = create_folds(n_timesteps, num_folds=n_splits, num_windows=4)
+            test_embeddings = []
+            test_labels = []
+
+            # create figure with 3 rows and 6 columns
+            fig = plt.figure(figsize=(24, 24), dpi=100)
+            colormap = colormap_2d()  
             
-            emb_train, emb_test = get_embeddings(model, inputs, train_index, test_index)
 
-            # convert positional data to colors
-            colordata = get_color_from_position(labels, colormap)
-            colordata_train = colordata[train_index, :]
-            colordata_test = colordata[test_index, :]
+            for i, (train_index, test_index) in enumerate(folds):
+                model, model_name = load_cebra_model(m, data_dir, goal, window_size, i)
+                
+                emb_train, emb_test = get_embeddings(model, inputs, train_index, test_index)
 
-            # create subplot of 3d embeddings, with projection='3d'
-            ax = fig.add_subplot(6, 6, i+1, projection='3d')
-            ax.scatter(emb_train[::10, 0], emb_train[::10, 1], emb_train[::10,2], c=colordata_train[::10,:], s=0.5)
+                # convert positional data to colors
+                colordata = get_color_from_position(labels, colormap)
+                colordata_train = colordata[train_index, :]
+                colordata_test = colordata[test_index, :]
 
-            ax = fig.add_subplot(6, 6, 6*3 + i+1, projection='3d')
-            ax.scatter(emb_test[::10, 0], emb_test[::10, 1], emb_test[::10,2], c=colordata_test[::10,:], s=0.5)
-            
-            # decoding
-            label_train = labels[train_index, :]
-            label_test = labels[test_index, :]
+                # create subplot of 3d embeddings, with projection='3d'
+                ax = fig.add_subplot(6, 6, i+1, projection='3d')
+                # ax.scatter(emb_train[::10, 0], emb_train[::10, 1], emb_train[::10,2], c=colordata_train[::10,:], s=0.5)
+                ax.scatter(emb_train[:, 0], emb_train[:, 1], emb_train[:,2], c=colordata_train, s=0.5)
 
-            decoded_train_pos = decode_pos(emb_train, emb_train, label_train, n_neighbors=72)
-            decoded_test_pos = decode_pos(emb_train, emb_test, label_train, n_neighbors=72)  
- 
-            for j in range(2):
-                ax = fig.add_subplot(6, 6, 6*(j+1) + i+1)
-                ax.scatter(label_train[:, j], decoded_train_pos[:, j], 0.5, 'b')
-                r2_val = sklearn.metrics.r2_score(label_train[:, j], decoded_train_pos[:, j])
-                # plot r2_val on plot
-                ax.text(0.5, 0.5, f'R2: {r2_val:.2f}', fontsize=16)
+                ax = fig.add_subplot(6, 6, 6*3 + i+1, projection='3d')
+                # ax.scatter(emb_test[::10, 0], emb_test[::10, 1], emb_test[::10,2], c=colordata_test[::10,:], s=0.5)
+                ax.scatter(emb_test[:, 0], emb_test[:, 1], emb_test[:, 2], c=colordata_test, s=0.5)
+                
+                # decoding
+                label_train = labels[train_index, :]
+                label_test = labels[test_index, :]
 
-                ax = fig.add_subplot(6, 6, 6*(j+4) + i+1)
-                ax.scatter(label_test[:, j], decoded_test_pos[:, j], 0.5, 'r')
-                r2_val = sklearn.metrics.r2_score(label_test[:, j], decoded_test_pos[:, j])
-                # plot r2_val on plot
-                ax.text(0.5, 0.5, f'R2: {r2_val:.2f}', fontsize=16)
+                decoded_train_pos = decode_pos(emb_train, emb_train, label_train, n_neighbors=72)
+                decoded_test_pos = decode_pos(emb_train, emb_test, label_train, n_neighbors=72)  
     
-        # plot the colormap in the sixth column of the first row
-        ax = fig.add_subplot(6, 6, 6)
-        ax.imshow(colormap)
+                for j in range(2):
+                    ax = fig.add_subplot(6, 6, 6*(j+1) + i+1)
+                    ax.scatter(label_train[:, j], decoded_train_pos[:, j], 0.5, 'b')
+                    r2_val = sklearn.metrics.r2_score(label_train[:, j], decoded_train_pos[:, j])
+                    # plot r2_val on plot
+                    ax.text(0.5, 0.5, f'R2: {r2_val:.2f}', fontsize=16)
+
+                    ax = fig.add_subplot(6, 6, 6*(j+4) + i+1)
+                    ax.scatter(label_test[:, j], decoded_test_pos[:, j], 0.5, 'r')
+                    r2_val = sklearn.metrics.r2_score(label_test[:, j], decoded_test_pos[:, j])
+                    # plot r2_val on plot
+                    ax.text(0.5, 0.5, f'R2: {r2_val:.2f}', fontsize=16)
         
-        fig_name = f'{model_name}_embedding_and_decoding_goal{goal}_ws{window_size}.png'
-        fig_path = os.path.join(data_dir, fig_name)
-        fig.savefig(fig_path)
-        pass
+            # plot the colormap in the sixth column of the first row
+            ax = fig.add_subplot(6, 6, 6)
+            ax.imshow(colormap)
+            
+            fig_name = f'{model_name}_embedding_and_decoding_goal{goal}_ws{window_size}.png'
+            fig_path = os.path.join(data_dir, fig_name)
+            fig.savefig(fig_path)
+            pass
 
 
 ######################################### PLOT THE LOSS #########################################
