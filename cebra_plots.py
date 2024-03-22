@@ -13,7 +13,7 @@ sys.path.append('C:/Users/Jake/Documents/python_code/robot_maze_analysis_code')
 # sys.path.append('/home/jake/Documents/python_code/robot_maze_analysis_code')
 from utilities.get_directories import get_data_dir
 
-from cebra_embedding import create_folds
+from cebra_embedding import create_folds_v2
 
 
 def decode_pos(emb_train, emb_test, label_train, n_neighbors=36):
@@ -99,6 +99,7 @@ if __name__ == "__main__":
     ########## CREATE LIST OF MODELS ###############
     # model_list = ['time3', 'pos3', 'pos_hybrid3', 'pos_shuffled3']
     model_list = ['pos3']
+    # model_list = ['pos3']
 
     ########## CREATE LIST OF TIMEWINDOWS #############
     window_sizes = [25, 50, 100, 250, 500]
@@ -128,7 +129,7 @@ if __name__ == "__main__":
             n_splits = 5
             # kf = KFold(n_splits=n_splits, shuffle=False)
             n_timesteps = inputs.shape[0]
-            folds = create_folds(n_timesteps, num_folds=n_splits, num_windows=4)
+            folds = create_folds_v2(n_timesteps, num_folds=n_splits, num_windows=10)
             test_embeddings = []
             test_labels = []
 

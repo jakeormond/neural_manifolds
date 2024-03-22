@@ -56,12 +56,14 @@ def create_folds_v2(n_timesteps, num_folds=5, num_windows=10):
 
         folds.append((train_ind, test_ind))
 
-    # As a sanity check, plot the distribution of the test indices
-    fig, ax = plt.subplots()
-    ax.hist(train_ind, label='train')
-    ax.hist(test_ind, label='test')
-    ax.legend()
-    plt.show()
+    # # As a sanity check, plot the distribution of the test indices
+    # fig, ax = plt.subplots()
+    # ax.hist(train_ind, label='train')
+    # ax.hist(test_ind, label='test')
+    # ax.legend()
+    # plt.show()
+    
+    return folds
 
 
 def decoding_pos_dir(emb_train, emb_test, label_train, label_test, n_neighbors=36):
