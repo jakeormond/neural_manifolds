@@ -12,58 +12,12 @@ from cebra import CEBRA
 from sklearn.model_selection import KFold
 from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
 import sklearn.metrics
-# import pickle
+import pickle
+
+from cebra_embedding import create_folds
 
 # sys.path.append('C:/Users/Jake/Documents/python_code/robot_maze_analysis_code')
 # from utilities.get_directories import get_data_dir
-
-
-def create_folds(n_timesteps, num_folds=5, num_windows=4):
-    n_windows_total = num_folds * num_windows
-    window_size = n_timesteps // n_windows_total
-    window_start_ind = np.arange(0, n_timesteps, window_size)
-
-    folds = []
-
-    for i in range(num_folds):
-        test_windows = np.arange(i, n_windows_total, num_folds)
-        test_ind = []
-        for j in test_windows:
-            test_ind.extend(np.arange(window_start_ind[j], window_start_ind[j] + window_size))
-        train_ind = list(set(range(n_timesteps)) - set(test_ind))
-
-        folds.append((train_ind, test_ind))
-
-    return folds
-
-
-def create_folds_v2(n_timesteps, num_folds=5, num_windows=10):
-    n_windows_total = num_folds * num_windows
-    window_size = n_timesteps // n_windows_total
-    window_start_ind = np.arange(0, n_timesteps, window_size)
-
-    folds = []
-
-    for i in range(num_folds):
-        # Uniformly select test windows from the total windows
-        step_size = n_windows_total // num_windows
-        test_windows = np.arange(i, n_windows_total, step_size)
-        test_ind = []
-        for j in test_windows:
-            # Select every nth index for testing, where n is the step size
-            test_ind.extend(np.arange(window_start_ind[j], window_start_ind[j] + window_size, step_size))
-        train_ind = list(set(range(n_timesteps)) - set(test_ind))
-
-        folds.append((train_ind, test_ind))
-
-    # As a sanity check, plot the distribution of the test indices
-    # fig, ax = plt.subplots()
-    # ax.hist(train_ind, label='train')
-    # ax.hist(test_ind, label='test')
-    # ax.legend()
-    # plt.show()
-        
-    return folds
 
 
 def decoding_pos_dir(emb_train, emb_test, label_train, label_test, n_neighbors=36):
@@ -150,7 +104,12 @@ if __name__ == "__main__":
         n_splits = 5
         # kf = KFold(n_splits=n_splits, shuffle=False)
         n_timesteps = inputs.shape[0]
-        folds = create_folds_v2(n_timesteps, num_folds=n_splits, num_windows=10)
+        folds = create_folds(n_timesteps, num_folds=n_splits, num_windows=10)
+
+        folds_file_name = f'folds_goal{goal}_ws{window_size}'
+        folds_file_path = os.path.join(data_dir, folds_file_name + '.pkl')
+        with open(folds_file_path, 'wb') as f:
+            pickle.dump(folds, f)
 
         # for i, (train_index, test_index) in enumerate(kf.split(inputs)):
         for i, (train_index, test_index) in enumerate(folds):
