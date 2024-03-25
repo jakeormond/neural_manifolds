@@ -12,7 +12,7 @@ from mpl_toolkits.mplot3d import Axes3D
 sys.path.append('C:/Users/Jake/Documents/python_code/robot_maze_analysis_code')
 # sys.path.append('/home/jake/Documents/python_code/robot_maze_analysis_code')
 from utilities.get_directories import get_data_dir
-from utilities.load_and_save_data import save_pickle
+from utilities.load_and_save_data import save_pickle, load_pickle
 
 from cebra_embedding import create_folds
 
@@ -26,7 +26,7 @@ def decode_pos(emb_train, emb_test, label_train, n_neighbors=36):
     return pos_pred
 
 def load_cebra_model(model_name, data_dir, goal, window_size, i):
-    model_name = f'cebra_{model_name}_model_goal{goal}_ws{window_size}_fold{i+1}.pt'
+    model_name = f'cebra_{model_name}_goal{goal}_ws{window_size}_fold{i+1}.pt'
     model_path = os.path.join(data_dir, model_name)
     cebra_pos3_model = cebra.CEBRA.load(model_path)
 
@@ -94,24 +94,28 @@ if __name__ == "__main__":
     #     decoding_scores = pickle.load(f)
 
 
-
-
-
     ########## CREATE LIST OF MODELS ###############
     # model_list = ['time3', 'pos3', 'pos_hybrid3', 'pos_shuffled3']
-    model_list = ['pos3']
+    model_list = ['time3', 'time_shuffled3']
     # model_list = ['pos3']
 
     ########## CREATE LIST OF TIMEWINDOWS #############
-    window_sizes = [25, 50, 100, 250, 500]
+    # window_sizes = [25, 50, 100, 250, 500]
+    window_sizes = [250, 500]
 
 
     ########## CREATE FIGURE OF EMBEDDINGS AND DECODING #######################
 
-    folds_by_model_and_window = {}
+    # folds_by_model_and_window = {}
 
     for m in model_list:
         for window_size in window_sizes:
+            
+            ############# LOAD FOLDS #################
+            folds_file = f'folds_goal{goal}_ws{window_size}.pkl'
+            # load the file
+            folds = load_pickle(folds_file, data_dir)
+
             ############ LOAD POSITIONAL DATA ################
             dlc_dir = os.path.join(data_dir, 'deeplabcut', 'labels_for_embedding_and_decoding')
             labels_file_name = f'labels_goal{goal}_ws{window_size}'
@@ -130,14 +134,13 @@ if __name__ == "__main__":
             inputs = torch.tensor(inputs, dtype=torch.float32)  
 
             # will use k-folds with 5 splits
-            n_splits = 5
+            # n_splits = 5
             # kf = KFold(n_splits=n_splits, shuffle=False)
-            n_timesteps = inputs.shape[0]
-            num_windows = 10
-            folds = create_folds(n_timesteps, num_folds=n_splits, num_windows=num_windows)
+            # n_timesteps = inputs.shape[0]
+            # num_windows = 10
+            # folds = create_folds(n_timesteps, num_folds=n_splits, num_windows=num_windows)
 
-            dict_key = f'{m}_ws{window_size}'
-            folds_by_model_and_window[dict_key] = folds
+            # dict_key = f'{m}_ws{window_size}'
 
             test_embeddings = []
             test_labels = []
@@ -196,9 +199,9 @@ if __name__ == "__main__":
             pass
 
     # save the folds_by_model_and_window dictionary
-    folds_by_model_and_window_name = f'folds_by_model_and_window_goal{goal}.pkl'
-    folds_by_model_and_window_path = os.path.join(data_dir, folds_by_model_and_window_name)
-    save_pickle(folds_by_model_and_window, folds_by_model_and_window_name, data_dir)
+    # folds_by_model_and_window_name = f'folds_by_model_and_window_goal{goal}.pkl'
+    # folds_by_model_and_window_path = os.path.join(data_dir, folds_by_model_and_window_name)
+    # save_pickle(folds_by_model_and_window, folds_by_model_and_window_name, data_dir)
 
 
     ######################################### PLOT THE LOSS #########################################
