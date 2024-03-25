@@ -12,8 +12,9 @@ from mpl_toolkits.mplot3d import Axes3D
 sys.path.append('C:/Users/Jake/Documents/python_code/robot_maze_analysis_code')
 # sys.path.append('/home/jake/Documents/python_code/robot_maze_analysis_code')
 from utilities.get_directories import get_data_dir
+from utilities.load_and_save_data import save_pickle
 
-from cebra_embedding import create_folds_v2
+from cebra_embedding import create_folds
 
 
 def decode_pos(emb_train, emb_test, label_train, n_neighbors=36):
@@ -106,6 +107,9 @@ if __name__ == "__main__":
 
 
     ########## CREATE FIGURE OF EMBEDDINGS AND DECODING #######################
+
+    folds_by_model_and_window = {}
+
     for m in model_list:
         for window_size in window_sizes:
             ############ LOAD POSITIONAL DATA ################
@@ -129,7 +133,12 @@ if __name__ == "__main__":
             n_splits = 5
             # kf = KFold(n_splits=n_splits, shuffle=False)
             n_timesteps = inputs.shape[0]
-            folds = create_folds_v2(n_timesteps, num_folds=n_splits, num_windows=10)
+            num_windows = 10
+            folds = create_folds(n_timesteps, num_folds=n_splits, num_windows=num_windows)
+
+            dict_key = f'{m}_ws{window_size}'
+            folds_by_model_and_window[dict_key] = folds
+
             test_embeddings = []
             test_labels = []
 
@@ -186,25 +195,30 @@ if __name__ == "__main__":
             fig.savefig(fig_path)
             pass
 
+    # save the folds_by_model_and_window dictionary
+    folds_by_model_and_window_name = f'folds_by_model_and_window_goal{goal}.pkl'
+    folds_by_model_and_window_path = os.path.join(data_dir, folds_by_model_and_window_name)
+    save_pickle(folds_by_model_and_window, folds_by_model_and_window_name, data_dir)
 
-######################################### PLOT THE LOSS #########################################
-fig = plt.figure(figsize=(25,4))
-colours = ['blue', 'orange', 'green', 'red']
-for i in range(n_splits):
-    ax = fig.add_subplot(1, 5, i+1)
-    for j, m in enumerate(model_list):  
-        model, model_name = load_cebra_model(m, data_dir, goal, window_size, i)        
-        ax.plot(model.state_dict_['loss'], c=colours[j], label = m)
-        ax.set_xlabel('Epoch')
-        ax.set_ylabel('Loss')   
 
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.set_xlabel('Iterations')
-    ax.set_ylabel('InfoNCE Loss')
-    plt.legend(bbox_to_anchor=(0.5,0.3), frameon = False )
-    # plt.show()
+    ######################################### PLOT THE LOSS #########################################
+    fig = plt.figure(figsize=(25,4))
+    colours = ['blue', 'orange', 'green', 'red']
+    for i in range(n_splits):
+        ax = fig.add_subplot(1, 5, i+1)
+        for j, m in enumerate(model_list):  
+            model, model_name = load_cebra_model(m, data_dir, goal, window_size, i)        
+            ax.plot(model.state_dict_['loss'], c=colours[j], label = m)
+            ax.set_xlabel('Epoch')
+            ax.set_ylabel('Loss')   
 
-fig_name = f'loss_goal{goal}_ws{window_size}.png'
-fig_path = os.path.join(data_dir, fig_name)
-fig.savefig(fig_path)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.set_xlabel('Iterations')
+        ax.set_ylabel('InfoNCE Loss')
+        plt.legend(bbox_to_anchor=(0.5,0.3), frameon = False )
+        # plt.show()
+
+    fig_name = f'loss_goal{goal}_ws{window_size}.png'
+    fig_path = os.path.join(data_dir, fig_name)
+    fig.savefig(fig_path)
