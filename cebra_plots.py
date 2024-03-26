@@ -126,13 +126,13 @@ if __name__ == "__main__":
 
     ########## CREATE LIST OF MODELS ###############
     # model_list = ['time3', 'pos3', 'pos_hybrid3', 'pos_shuffled3']
-    # model_list = ['time3', 'time_shuffled3']
-    model_list = ['pos3', 'pos3_v2']
+    model_list = ['time3', 'time_shuffled3']
+    # model_list = ['pos3']
 
     ########## CREATE LIST OF TIMEWINDOWS #############
     # window_sizes = [25, 50, 100, 250, 500]
     # window_sizes = [100, 250, 500]
-    window_sizes = [250]
+    window_sizes = [100, 250]
 
 
     ########## CREATE FIGURE OF EMBEDDINGS AND DECODING #######################
@@ -142,17 +142,11 @@ if __name__ == "__main__":
     for m in model_list:
         for window_size in window_sizes:
          
-            ############# LOAD FOLDS #################
-            if m == 'pos3':
-                folds_file = f'folds_goal{goal}_ws{window_size}.pkl'
-                # load the file
-                folds = load_pickle(folds_file, data_dir)
-
-            
-            elif m == 'pos3_v2':
-                folds_file_v2 = f'folds_v2_goal{goal}_ws{window_size}.pkl'
-                # load the file
-                folds = load_pickle(folds_file_v2, data_dir)
+            ############# LOAD FOLDS #################        
+            folds_file = f'folds_goal{goal}_ws{window_size}.pkl'
+            # load the file
+            folds = load_pickle(folds_file, data_dir)
+            n_folds = len(folds)
 
             ############ LOAD POSITIONAL DATA ################
             dlc_dir = os.path.join(data_dir, 'deeplabcut', 'labels_for_embedding_and_decoding')
@@ -172,10 +166,10 @@ if __name__ == "__main__":
             inputs = torch.tensor(inputs, dtype=torch.float32)  
 
             # will use k-folds with 5 splits
-            n_splits = 5
+            # n_splits = 5
             # kf = KFold(n_splits=n_splits, shuffle=False)
-            n_timesteps = inputs.shape[0]
-            num_windows = 10
+            # n_timesteps = inputs.shape[0]
+            # num_windows = 10
             # folds = create_folds(n_timesteps, num_folds=n_splits, num_windows=num_windows)
             # folds_v2 = create_folds_v2(n_timesteps, num_folds=5, num_windows=10)
 
@@ -202,11 +196,11 @@ if __name__ == "__main__":
                 colordata_test = colordata[test_index, :]
 
                 # create subplot of 3d embeddings, with projection='3d'
-                ax = fig.add_subplot(6, 6, i+1, projection='3d')
+                ax = fig.add_subplot(6, n_folds+1, i+1, projection='3d')
                 # ax.scatter(emb_train[::10, 0], emb_train[::10, 1], emb_train[::10,2], c=colordata_train[::10,:], s=0.5)
                 ax.scatter(emb_train[:, 0], emb_train[:, 1], emb_train[:,2], c=colordata_train, s=0.5)
 
-                ax = fig.add_subplot(6, 6, 6*3 + i+1, projection='3d')
+                ax = fig.add_subplot(6, n_folds+1, (n_folds+1)*3 + i+1, projection='3d')
                 # ax.scatter(emb_test[::10, 0], emb_test[::10, 1], emb_test[::10,2], c=colordata_test[::10,:], s=0.5)
                 ax.scatter(emb_test[:, 0], emb_test[:, 1], emb_test[:, 2], c=colordata_test, s=0.5)
                 
@@ -218,20 +212,20 @@ if __name__ == "__main__":
                 decoded_test_pos = decode_pos(emb_train, emb_test, label_train, n_neighbors=72)  
     
                 for j in range(2):
-                    ax = fig.add_subplot(6, 6, 6*(j+1) + i+1)
+                    ax = fig.add_subplot(6, n_folds+1, (n_folds+1)*(j+1) + i+1)
                     ax.scatter(label_train[:, j], decoded_train_pos[:, j], 0.5, 'b')
                     r2_val = sklearn.metrics.r2_score(label_train[:, j], decoded_train_pos[:, j])
                     # plot r2_val on plot
                     ax.text(0.5, 0.5, f'R2: {r2_val:.2f}', fontsize=16)
 
-                    ax = fig.add_subplot(6, 6, 6*(j+4) + i+1)
+                    ax = fig.add_subplot(6, n_folds+1, (n_folds+1)*(j+4) + i+1)
                     ax.scatter(label_test[:, j], decoded_test_pos[:, j], 0.5, 'r')
                     r2_val = sklearn.metrics.r2_score(label_test[:, j], decoded_test_pos[:, j])
                     # plot r2_val on plot
                     ax.text(0.5, 0.5, f'R2: {r2_val:.2f}', fontsize=16)
         
             # plot the colormap in the sixth column of the first row
-            ax = fig.add_subplot(6, 6, 6)
+            ax = fig.add_subplot(6, n_folds+1, n_folds+1)
             ax.imshow(colormap)
             
             fig_name = f'{model_name}_embedding_and_decoding_goal{goal}_ws{window_size}.png'
