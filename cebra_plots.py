@@ -127,7 +127,7 @@ if __name__ == "__main__":
     ########## CREATE LIST OF MODELS ###############
     # model_list = ['time3', 'pos3', 'pos_hybrid3', 'pos_shuffled3']
     # model_list = ['time3', 'time_shuffled3']
-    model_list = ['pos3']
+    model_list = ['pos3', 'pos3_v2']
 
     ########## CREATE LIST OF TIMEWINDOWS #############
     # window_sizes = [25, 50, 100, 250, 500]
@@ -142,9 +142,16 @@ if __name__ == "__main__":
         for window_size in window_sizes:
          
             ############# LOAD FOLDS #################
-            folds_file = f'folds_goal{goal}_ws{window_size}.pkl'
-            # load the file
-            folds = load_pickle(folds_file, data_dir)
+            if m == 'pos3':
+                folds_file = f'folds_goal{goal}_ws{window_size}.pkl'
+                # load the file
+                folds = load_pickle(folds_file, data_dir)
+
+            
+            elif m == 'pos3_v2':
+                folds_file_v2 = f'folds_v2_goal{goal}_ws{window_size}.pkl'
+                # load the file
+                folds = load_pickle(folds_file_v2, data_dir)
 
             ############ LOAD POSITIONAL DATA ################
             dlc_dir = os.path.join(data_dir, 'deeplabcut', 'labels_for_embedding_and_decoding')
@@ -169,7 +176,7 @@ if __name__ == "__main__":
             n_timesteps = inputs.shape[0]
             num_windows = 10
             # folds = create_folds(n_timesteps, num_folds=n_splits, num_windows=num_windows)
-            folds_v2 = create_folds_v2(n_timesteps, num_folds=5, num_windows=10)
+            # folds_v2 = create_folds_v2(n_timesteps, num_folds=5, num_windows=10)
 
             # dict_key = f'{m}_ws{window_size}'
 
@@ -182,6 +189,9 @@ if __name__ == "__main__":
             
 
             for i, (train_index, test_index) in enumerate(folds):
+                if i > 0:
+                    continue
+
                 model, model_name = load_cebra_model(m, data_dir, goal, window_size, i)
                 
                 emb_train, emb_test = get_embeddings(model, inputs, train_index, test_index)
