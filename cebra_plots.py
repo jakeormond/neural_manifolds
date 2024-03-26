@@ -131,7 +131,8 @@ if __name__ == "__main__":
 
     ########## CREATE LIST OF TIMEWINDOWS #############
     # window_sizes = [25, 50, 100, 250, 500]
-    window_sizes = [100, 250, 500]
+    # window_sizes = [100, 250, 500]
+    window_sizes = [250]
 
 
     ########## CREATE FIGURE OF EMBEDDINGS AND DECODING #######################
@@ -189,8 +190,7 @@ if __name__ == "__main__":
             
 
             for i, (train_index, test_index) in enumerate(folds):
-                if i > 0:
-                    continue
+               
 
                 model, model_name = load_cebra_model(m, data_dir, goal, window_size, i)
                 
