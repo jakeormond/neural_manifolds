@@ -30,7 +30,7 @@ if __name__ == "__main__":
     data_dir = '/ceph/scratch/jakeo/'
 
     goal = 52
-    window_sizes = [100, 250, 500]
+    window_sizes = [250]
 
     for window_size in window_sizes: 
 
@@ -79,7 +79,7 @@ if __name__ == "__main__":
 
         # for i, (train_index, test_index) in enumerate(kf.split(inputs)):
         # for i, (train_index, test_index) in enumerate(folds):
-        for i in range(0):
+        for i in range(5):
 
             train_index, test_index = folds[i]
 
