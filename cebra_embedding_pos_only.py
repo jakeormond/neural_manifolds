@@ -73,13 +73,13 @@ if __name__ == "__main__":
 
         folds_v2 = create_folds_v2(n_timesteps, num_folds=n_splits, num_windows=10)
         folds_v2_file_name = f'folds_v2_goal{goal}_ws{window_size}'
-        folds_v2_file_path = os.path.join(data_dir, folds_file_name + '.pkl')
+        folds_v2_file_path = os.path.join(data_dir, folds_v2_file_name + '.pkl')
         with open(folds_v2_file_path, 'wb') as f:
             pickle.dump(folds_v2, f)
 
         # for i, (train_index, test_index) in enumerate(kf.split(inputs)):
         # for i, (train_index, test_index) in enumerate(folds):
-        for i in range(1):
+        for i in range(0):
 
             train_index, test_index = folds[i]
 
