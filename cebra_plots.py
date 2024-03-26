@@ -17,6 +17,36 @@ from utilities.load_and_save_data import save_pickle, load_pickle
 from cebra_embedding import create_folds
 
 
+def create_folds_v2(n_timesteps, num_folds=5, num_windows=10):
+    n_windows_total = num_folds * num_windows
+    window_size = n_timesteps // n_windows_total
+    window_start_ind = np.arange(0, n_timesteps, window_size)
+
+    folds = []
+
+    for i in range(num_folds):
+        # Uniformly select test windows from the total windows
+        step_size = n_windows_total // num_windows
+        test_windows = np.arange(i, n_windows_total, step_size)
+        test_ind = []
+        for j in test_windows:
+            # Select every nth index for testing, where n is the step size
+            test_ind.extend(np.arange(window_start_ind[j], window_start_ind[j] + window_size, step_size))
+        train_ind = list(set(range(n_timesteps)) - set(test_ind))
+
+        folds.append((train_ind, test_ind))
+
+    # As a sanity check, plot the distribution of the test indices
+    # fig, ax = plt.subplots()
+    # ax.hist(train_ind, label='train')
+    # ax.hist(test_ind, label='test')
+    # ax.legend()
+    # plt.show()
+
+    return folds
+
+
+
 def decode_pos(emb_train, emb_test, label_train, n_neighbors=36):
     pos_decoder = KNeighborsRegressor(n_neighbors)
 
@@ -96,12 +126,12 @@ if __name__ == "__main__":
 
     ########## CREATE LIST OF MODELS ###############
     # model_list = ['time3', 'pos3', 'pos_hybrid3', 'pos_shuffled3']
-    model_list = ['time3', 'time_shuffled3']
-    # model_list = ['pos3']
+    # model_list = ['time3', 'time_shuffled3']
+    model_list = ['pos3']
 
     ########## CREATE LIST OF TIMEWINDOWS #############
     # window_sizes = [25, 50, 100, 250, 500]
-    window_sizes = [250, 500]
+    window_sizes = [100, 250, 500]
 
 
     ########## CREATE FIGURE OF EMBEDDINGS AND DECODING #######################
@@ -110,7 +140,7 @@ if __name__ == "__main__":
 
     for m in model_list:
         for window_size in window_sizes:
-            
+         
             ############# LOAD FOLDS #################
             folds_file = f'folds_goal{goal}_ws{window_size}.pkl'
             # load the file
@@ -134,11 +164,12 @@ if __name__ == "__main__":
             inputs = torch.tensor(inputs, dtype=torch.float32)  
 
             # will use k-folds with 5 splits
-            # n_splits = 5
+            n_splits = 5
             # kf = KFold(n_splits=n_splits, shuffle=False)
-            # n_timesteps = inputs.shape[0]
-            # num_windows = 10
+            n_timesteps = inputs.shape[0]
+            num_windows = 10
             # folds = create_folds(n_timesteps, num_folds=n_splits, num_windows=num_windows)
+            folds_v2 = create_folds_v2(n_timesteps, num_folds=5, num_windows=10)
 
             # dict_key = f'{m}_ws{window_size}'
 
