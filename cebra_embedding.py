@@ -31,7 +31,7 @@ def create_folds(n_timesteps, num_folds=5, num_windows=10):
         test_windows = np.arange(i, n_windows_total, num_folds)
         test_ind = []
         for j in test_windows:
-            test_ind.extend(np.arange(window_start_ind[j], window_start_ind[j] + window_size))
+            test_ind.extend(np.arange(window_start_ind[j], window_start_ind[j] + window_size-1))
         train_ind = list(set(range(n_timesteps)) - set(test_ind))
 
         folds.append((train_ind, test_ind))
@@ -169,9 +169,12 @@ if __name__ == "__main__":
 
     # will use k-folds with 5 splits
     n_splits = 10
-    num_windows = 100
+    num_windows = 200
     # kf = KFold(n_splits=n_splits, shuffle=False)
     n_timesteps = inputs.shape[0]
+    
+    folds = create_folds(14682, num_folds=10, num_windows=200)
+
     folds = create_folds(n_timesteps, num_folds=n_splits, num_windows=num_windows)
 
 
