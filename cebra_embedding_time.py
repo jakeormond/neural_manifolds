@@ -56,10 +56,6 @@ def decoding_pos(emb_train, emb_test, label_train, label_test, n_neighbors=36):
     return pos_test_err, pos_test_x_score, pos_test_y_score
 
 
-def plot_embeddings(embeddings):
-    pass
-
-
 ''' using data created with pytorch_decoding.dataset_creation.py '''
 
 if __name__ == "__main__":
@@ -71,18 +67,9 @@ if __name__ == "__main__":
 
     goal = 52
     # window_sizes = [25, 50, 100, 250, 500]
-    window_sizes = [100, 250, 500]
+    window_sizes = [100, 250]
 
     for window_size in window_sizes: 
-
-
-        ############ LOAD POSITIONAL DATA ################
-        #  = os.path.join(data_dir, 'deeplabcut')
-        labels_file_name = f'labels_goal{goal}_ws{window_size}'
-        # load numpy array of labels
-        labels = np.load(os.path.join(data_dir, labels_file_name + '.npy'))
-        # keep only the first 2 columns
-        labels = labels[:, :2]
 
         ############ LOAD SPIKE DATA #####################
         # load numpy array of neural data
@@ -101,10 +88,11 @@ if __name__ == "__main__":
         max_iterations = 5000 #default is 5000.
 
         # will use k-folds with 5 splits
-        n_splits = 5
+        n_splits = 10
         # kf = KFold(n_splits=n_splits, shuffle=False)
         n_timesteps = inputs.shape[0]
-        folds = create_folds(n_timesteps, num_folds=n_splits, num_windows=10)
+        num_windows = 200
+        folds = create_folds(n_timesteps, num_folds=n_splits, num_windows=num_windows)
 
         folds_file_name = f'folds_goal{goal}_ws{window_size}'
         folds_file_path = os.path.join(data_dir, folds_file_name + '.pkl')
@@ -113,15 +101,15 @@ if __name__ == "__main__":
 
         # for i, (train_index, test_index) in enumerate(kf.split(inputs)):
         for i, (train_index, test_index) in enumerate(folds):
+    
             print(f'Fold {i+1} of {n_splits}')
             X_train, X_test = inputs[train_index,:], inputs[test_index,:]
-            y_train, y_test = labels[train_index,:], labels[test_index,:]
-
+            
             ################## TIME-ONLY MODEL ########################
             cebra_time3_model = CEBRA(model_architecture='offset10-model',
                             batch_size=512,
                             learning_rate=3e-4,
-                            temperature=1.12,
+                            temperature=1,
                             output_dimension=3,
                             max_iterations=max_iterations,
                             distance='cosine',
@@ -139,11 +127,11 @@ if __name__ == "__main__":
             # cebra_file_path = cebra_file_path.replace("\\", "/")        
             cebra_time3_model.save(cebra_file_path)
 
-            ################ SHUFFLED TIMEL ##################
+            ################ SHUFFLED TIME ##################
             cebra_time_shuffled3_model = CEBRA(model_architecture='offset10-model',
                             batch_size=512,
                             learning_rate=3e-4,
-                            temperature=1.12,
+                            temperature=1,
                             output_dimension=3,
                             max_iterations=max_iterations,
                             distance='cosine',

@@ -14,7 +14,7 @@ from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
 import sklearn.metrics
 import pickle
 
-from cebra_embedding import create_folds, create_folds_v2
+from cebra_embedding import create_folds
 
 # sys.path.append('C:/Users/Jake/Documents/python_code/robot_maze_analysis_code')
 # from utilities.get_directories import get_data_dir
@@ -30,7 +30,7 @@ if __name__ == "__main__":
     data_dir = '/ceph/scratch/jakeo/'
 
     goal = 52
-    window_sizes = [250]
+    window_sizes = [100, 250]
 
     for window_size in window_sizes: 
 
@@ -60,10 +60,11 @@ if __name__ == "__main__":
         max_iterations = 5000 #default is 5000.
 
         # will use k-folds with 5 splits
-        n_splits = 5
+        n_splits = 10
         # kf = KFold(n_splits=n_splits, shuffle=False)
         n_timesteps = inputs.shape[0]
-        folds = create_folds(n_timesteps, num_folds=n_splits, num_windows=10)
+        num_windows = 200
+        folds = create_folds(n_timesteps, num_folds=n_splits, num_windows=num_windows)
         
         folds_file_name = f'folds_goal{goal}_ws{window_size}'
         folds_file_path = os.path.join(data_dir, folds_file_name + '.pkl')
@@ -71,17 +72,14 @@ if __name__ == "__main__":
             pickle.dump(folds, f)
 
 
-        folds_v2 = create_folds_v2(n_timesteps, num_folds=n_splits, num_windows=10)
-        folds_v2_file_name = f'folds_v2_goal{goal}_ws{window_size}'
-        folds_v2_file_path = os.path.join(data_dir, folds_v2_file_name + '.pkl')
-        with open(folds_v2_file_path, 'wb') as f:
-            pickle.dump(folds_v2, f)
+        # folds_v2 = create_folds_v2(n_timesteps, num_folds=n_splits, num_windows=10)
+        # folds_v2_file_name = f'folds_v2_goal{goal}_ws{window_size}'
+        # folds_v2_file_path = os.path.join(data_dir, folds_v2_file_name + '.pkl')
+        # with open(folds_v2_file_path, 'wb') as f:
+        #     pickle.dump(folds_v2, f)
 
         # for i, (train_index, test_index) in enumerate(kf.split(inputs)):
-        # for i, (train_index, test_index) in enumerate(folds):
-        for i in range(5):
-
-            train_index, test_index = folds[i]
+        for i, (train_index, test_index) in enumerate(folds):
 
             print(f'Fold {i+1} of {n_splits}')
             X_train, X_test = inputs[train_index,:], inputs[test_index,:]
@@ -110,33 +108,33 @@ if __name__ == "__main__":
             cebra_pos3_model.save(cebra_file_path)
 
             #####################################################
-            train_index, test_index = folds_v2[i]
+            # train_index, test_index = folds_v2[i]
 
-            print(f'Fold {i+1} of {n_splits}')
-            X_train, X_test = inputs[train_index,:], inputs[test_index,:]
-            y_train, y_test = labels[train_index,:], labels[test_index,:]
+            # print(f'Fold {i+1} of {n_splits}')
+            # X_train, X_test = inputs[train_index,:], inputs[test_index,:]
+            # y_train, y_test = labels[train_index,:], labels[test_index,:]
 
             ################ BEHAVIOUR MODEL WITH POSITION #######################
-            cebra_pos3_model_v2 = CEBRA(model_architecture='offset10-model',
-                            batch_size=512,
-                            learning_rate=3e-4,
-                            temperature=1,
-                            output_dimension=3,
-                            max_iterations=max_iterations,
-                            distance='cosine',
-                            conditional='time_delta',
-                            device='cuda_if_available',
-                            verbose=True,
-                            time_offsets=10)
+            # cebra_pos3_model_v2 = CEBRA(model_architecture='offset10-model',
+            #                 batch_size=512,
+            #                 learning_rate=3e-4,
+            #                 temperature=1,
+            #                 output_dimension=3,
+            #                 max_iterations=max_iterations,
+            #                 distance='cosine',
+            #                 conditional='time_delta',
+            #                 device='cuda_if_available',
+            #                 verbose=True,
+            #                 time_offsets=10)
 
-            cebra_pos3_model_v2.fit(X_train, y_train)
-            print('finished fitting position model')
+            # cebra_pos3_model_v2.fit(X_train, y_train)
+            # print('finished fitting position model')
         
-            cebra_file_name = f'cebra_pos3_v2_goal{goal}_ws{window_size}_fold{i+1}.pt'
-            cebra_file_path = os.path.join(cebra_model_dir, cebra_file_name)
-            # need to convert any double backslashes to forward slashes      
-            # cebra_file_path = cebra_file_path.replace("\\", "/")        
-            cebra_pos3_model.save(cebra_file_path)
+            # cebra_file_name = f'cebra_pos3_v2_goal{goal}_ws{window_size}_fold{i+1}.pt'
+            # cebra_file_path = os.path.join(cebra_model_dir, cebra_file_name)
+            # # need to convert any double backslashes to forward slashes      
+            # # cebra_file_path = cebra_file_path.replace("\\", "/")        
+            # cebra_pos3_model.save(cebra_file_path)
 
             
         
