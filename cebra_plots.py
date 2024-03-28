@@ -31,7 +31,7 @@ def create_folds_v2(n_timesteps, num_folds=5, num_windows=10):
         test_ind = []
         for j in test_windows:
             # Select every nth index for testing, where n is the step size
-            test_ind.extend(np.arange(window_start_ind[j], window_start_ind[j] + window_size, step_size))
+            test_ind.extend(np.int32(np.arange(window_start_ind[j], window_start_ind[j] + window_size, step_size)))
         train_ind = list(set(range(n_timesteps)) - set(test_ind))
 
         folds.append((train_ind, test_ind))
