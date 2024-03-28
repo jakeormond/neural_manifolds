@@ -31,7 +31,11 @@ def create_folds(n_timesteps, num_folds=5, num_windows=10):
         test_windows = np.arange(i, n_windows_total, num_folds)
         test_ind = []
         for j in test_windows:
-            test_ind.extend(np.arange(window_start_ind[j], window_start_ind[j] + window_size-1))
+            test_ind.extend(np.arange(window_start_ind[j], window_start_ind[j] + np.round(window_size)))
+
+        # remove any test_ind that greater than n_timesteps-1
+        test_ind = [ind for ind in test_ind if ind < n_timesteps]
+        
         train_ind = list(set(range(n_timesteps)) - set(test_ind))
 
         folds.append((train_ind, test_ind))
