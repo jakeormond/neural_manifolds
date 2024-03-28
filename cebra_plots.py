@@ -96,8 +96,8 @@ if __name__ == "__main__":
 
     ########## CREATE LIST OF MODELS ###############
     # model_list = ['time3', 'pos3', 'pos_hybrid3', 'pos_shuffled3']
-    model_list = ['time3', 'time_shuffled3']
-    # model_list = ['pos3']
+    # model_list = ['time3', 'time_shuffled3']
+    model_list = ['time_shuffled3']
 
     ########## CREATE LIST OF TIMEWINDOWS #############
     # window_sizes = [25, 50, 100, 250, 500]
