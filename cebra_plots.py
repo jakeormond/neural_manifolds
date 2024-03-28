@@ -146,7 +146,31 @@ if __name__ == "__main__":
             folds_file = f'folds_goal{goal}_ws{window_size}.pkl'
             # load the file
             folds = load_pickle(folds_file, data_dir)
+
+
+            ############ PLOT FOLDS ##################
+ 
             n_folds = len(folds)
+            # create figure with 10 subplots arranged in 2 rows
+            fig = plt.figure(figsize=(20, 10), dpi=100)
+         
+            for f in range(10):
+                ax = fig.add_subplot(2, 1, f+1)
+                train_index = folds[f][0]
+                test_index = folds[f][1]
+
+                # plot train index as lines from 0 to 1
+                ax.vlines(train_index, 0, 1, colors='b', linewidth=0.1)
+                ax.vlines(test_index, 1, 2, colors='r', linewidth=0.1)
+
+
+                ax.set_title(f'Fold {f+1}')
+                pass
+
+
+
+
+
 
             ############ LOAD POSITIONAL DATA ################
             dlc_dir = os.path.join(data_dir, 'deeplabcut', 'labels_for_embedding_and_decoding')

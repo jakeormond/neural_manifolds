@@ -14,14 +14,16 @@ from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
 import sklearn.metrics
 import pickle
 
-# sys.path.append('C:/Users/Jake/Documents/python_code/robot_maze_analysis_code')
-# from utilities.get_directories import get_data_dir
+sys.path.append('C:/Users/Jake/Documents/python_code/robot_maze_analysis_code')
+from utilities.get_directories import get_data_dir
 
 
 def create_folds(n_timesteps, num_folds=5, num_windows=10):
     n_windows_total = num_folds * num_windows
-    window_size = n_timesteps // n_windows_total
-    window_start_ind = np.arange(0, n_timesteps-window_size, window_size)
+    window_size = n_timesteps / n_windows_total
+
+    # window_start_ind = np.arange(0, n_windows_total) * window_size
+    window_start_ind = np.round(np.arange(0, n_windows_total) * window_size)
 
     folds = []
 
@@ -33,6 +35,27 @@ def create_folds(n_timesteps, num_folds=5, num_windows=10):
         train_ind = list(set(range(n_timesteps)) - set(test_ind))
 
         folds.append((train_ind, test_ind))
+
+
+    ############ PLOT FOLDS ##################
+ 
+    n_folds = len(folds)
+    # create figure with 10 subplots arranged in 2 rows
+    fig = plt.figure(figsize=(20, 10), dpi=100)
+    
+    for f in range(2):
+        ax = fig.add_subplot(2, 1, f+1)
+        train_index = folds[f][0]
+        test_index = folds[f][1]
+
+        # plot train index as lines from 0 to 1
+        ax.vlines(train_index, 0, 1, colors='b', linewidth=0.1)
+        ax.vlines(test_index, 1, 2, colors='r', linewidth=0.1)
+
+
+        ax.set_title(f'Fold {f+1}')
+        pass
+
 
     return folds
 
@@ -112,9 +135,9 @@ def plot_embeddings(embeddings):
 if __name__ == "__main__":
     animal = 'Rat46'
     session = '19-02-2024'
-    # data_dir = get_data_dir(animal, session)
+    data_dir = get_data_dir(animal, session)
 
-    data_dir = '/ceph/scratch/jakeo/'
+    # data_dir = '/ceph/scratch/jakeo/'
 
     goal = 52
     window_size = 100
@@ -124,7 +147,7 @@ if __name__ == "__main__":
     #  = os.path.join(data_dir, 'deeplabcut')
     labels_file_name = f'labels_goal{goal}_ws{window_size}'
     # load numpy array of labels
-    labels = np.load(os.path.join(data_dir, labels_file_name + '.npy'))
+    labels = np.load(os.path.join(data_dir, 'deeplabcut', 'labels_for_embedding_and_decoding', labels_file_name + '.npy'))
     # keep only the first 2 columns
     labels = labels[:, :2]
 
@@ -132,7 +155,7 @@ if __name__ == "__main__":
     # load numpy array of neural data
     # spike_dir = os.path.join(data_dir, 'spike_sorting')
     inputs_file_name = f'inputs_goal{goal}_ws{window_size}'
-    inputs = np.load(os.path.join(data_dir, inputs_file_name + '.npy'))
+    inputs = np.load(os.path.join(data_dir, 'spike_sorting', 'inputs_for_embedding_and_decoding', inputs_file_name + '.npy'))
 
     # load convert inputs to torch tensor
     inputs = torch.tensor(inputs, dtype=torch.float32)  
@@ -145,11 +168,18 @@ if __name__ == "__main__":
     max_iterations = 5000 #default is 5000.
 
     # will use k-folds with 5 splits
-    n_splits = 5
-    num_windows = 10
+    n_splits = 10
+    num_windows = 100
     # kf = KFold(n_splits=n_splits, shuffle=False)
     n_timesteps = inputs.shape[0]
     folds = create_folds(n_timesteps, num_folds=n_splits, num_windows=num_windows)
+
+
+
+
+
+
+
 
     folds_v2 = create_folds_v2(n_timesteps, num_folds=n_splits, num_windows=num_windows)
 
