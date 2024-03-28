@@ -17,36 +17,6 @@ from utilities.load_and_save_data import save_pickle, load_pickle
 from cebra_embedding import create_folds
 
 
-def create_folds_v2(n_timesteps, num_folds=5, num_windows=10):
-    n_windows_total = num_folds * num_windows
-    window_size = n_timesteps // n_windows_total
-    window_start_ind = np.arange(0, n_timesteps, window_size)
-
-    folds = []
-
-    for i in range(num_folds):
-        # Uniformly select test windows from the total windows
-        step_size = n_windows_total // num_windows
-        test_windows = np.arange(i, n_windows_total, step_size)
-        test_ind = []
-        for j in test_windows:
-            # Select every nth index for testing, where n is the step size
-            test_ind.extend(np.int32(np.arange(window_start_ind[j], window_start_ind[j] + window_size, step_size)))
-        train_ind = list(set(range(n_timesteps)) - set(test_ind))
-
-        folds.append((train_ind, test_ind))
-
-    # As a sanity check, plot the distribution of the test indices
-    # fig, ax = plt.subplots()
-    # ax.hist(train_ind, label='train')
-    # ax.hist(test_ind, label='test')
-    # ax.legend()
-    # plt.show()
-
-    return folds
-
-
-
 def decode_pos(emb_train, emb_test, label_train, n_neighbors=36):
     pos_decoder = KNeighborsRegressor(n_neighbors)
 
@@ -146,31 +116,7 @@ if __name__ == "__main__":
             folds_file = f'folds_goal{goal}_ws{window_size}.pkl'
             # load the file
             folds = load_pickle(folds_file, data_dir)
-
-
-            ############ PLOT FOLDS ##################
- 
             n_folds = len(folds)
-            # create figure with 10 subplots arranged in 2 rows
-            fig = plt.figure(figsize=(20, 10), dpi=100)
-         
-            for f in range(10):
-                ax = fig.add_subplot(2, 1, f+1)
-                train_index = folds[f][0]
-                test_index = folds[f][1]
-
-                # plot train index as lines from 0 to 1
-                ax.vlines(train_index, 0, 1, colors='b', linewidth=0.1)
-                ax.vlines(test_index, 1, 2, colors='r', linewidth=0.1)
-
-
-                ax.set_title(f'Fold {f+1}')
-                pass
-
-
-
-
-
 
             ############ LOAD POSITIONAL DATA ################
             dlc_dir = os.path.join(data_dir, 'deeplabcut', 'labels_for_embedding_and_decoding')
