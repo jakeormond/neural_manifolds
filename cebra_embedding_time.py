@@ -9,8 +9,9 @@ import os
 import cebra
 import torch
 from cebra import CEBRA
-from sklearn.model_selection import KFold
+from sklearn.model_selection import KFold, ParameterGrid
 from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
+
 import sklearn.metrics
 import pickle
 
@@ -58,97 +59,114 @@ def decoding_pos(emb_train, emb_test, label_train, label_test, n_neighbors=36):
 
 ''' using data created with pytorch_decoding.dataset_creation.py '''
 
-if __name__ == "__main__":
+
+def main():
     animal = 'Rat46'
     session = '19-02-2024'
-    # data_dir = get_data_dir(animal, session)
 
-    data_dir = '/ceph/scratch/jakeo/'
+    data_dir = '/ceph/scratch/jakeo/honeycomb_neural_data/rat_7/6-12-2019/'
+    spike_dir = os.path.join(data_dir, 'physiology_data')
+    dlc_dir = os.path.join(data_dir, 'positional_data')
+    labels = np.load(f'{dlc_dir}/labels_1203_with_dist2goal_scale_data_False_zscore_data_False_overlap_False_window_size_250.npy')
+    spike_data = np.load(f'{spike_dir}/inputs_overlap_False_window_size_250.npy')
 
-    goal = 52
-    # window_sizes = [25, 50, 100, 250, 500]
-    window_sizes = [100, 250]
+    # load convert inputs to torch tensor
+    inputs = torch.tensor(spike_data, dtype=torch.float32)  
 
-    for window_size in window_sizes: 
+    # Define the hyperparameters to tune
+    param_grid = {
+        'temperature': [0.11, 0.21, 1.2, 3.21],
+        'time_offsets': [1, 2, 3],
+        'output_dimension': [2, 3, 4, 5, 6, 7, 8],
+        'batch_size': [256, 512, 1024],
+        'learning_rate': [3e-5, 3e-4, 3e-3, 3e-2, 3e-2],
+        # Add other hyperparameters here
+    }
 
-        ############ LOAD SPIKE DATA #####################
-        # load numpy array of neural data
-        # spike_dir = os.path.join(data_dir, 'spike_sorting')
-        inputs_file_name = f'inputs_goal{goal}_ws{window_size}'
-        inputs = np.load(os.path.join(data_dir, inputs_file_name + '.npy'))
+    # Create a grid of hyperparameter combinations
+    param_combinations = list(ParameterGrid(param_grid))    
 
-        # load convert inputs to torch tensor
-        inputs = torch.tensor(inputs, dtype=torch.float32)  
+    # get the number of combinations
+    n_combinations = len(param_combinations)
+    # make a list of 20 random integers between 0 and n_combinations with no repeats, sorted
+    random_indices = np.sort(np.random.choice(n_combinations, 20, replace=False))
 
-        ########### TRAIN THE CEBRA MODEL ###############
-        # cebra_model_dir = os.path.join(data_dir, 'cebra')
-        cebra_model_dir = data_dir
-        
-        # max_iterations = 10000 #default is 5000.
-        max_iterations = 5000 #default is 5000.
 
-        # will use k-folds with 5 splits
-        n_splits = 10
-        # kf = KFold(n_splits=n_splits, shuffle=False)
-        n_timesteps = inputs.shape[0]
-        num_windows = 200
-        folds = create_folds(n_timesteps, num_folds=n_splits, num_windows=num_windows)
-
-        folds_file_name = f'folds_goal{goal}_ws{window_size}'
-        folds_file_path = os.path.join(data_dir, folds_file_name + '.pkl')
-        with open(folds_file_path, 'wb') as f:
-            pickle.dump(folds, f)
-
-        # for i, (train_index, test_index) in enumerate(kf.split(inputs)):
-        for i, (train_index, test_index) in enumerate(folds):
+    ########### TRAIN THE CEBRA MODEL ###############
+    # cebra_model_dir = os.path.join(data_dir, 'cebra')
+    cebra_model_dir = data_dir
     
-            print(f'Fold {i+1} of {n_splits}')
-            X_train, X_test = inputs[train_index,:], inputs[test_index,:]
-            
-            ################## TIME-ONLY MODEL ########################
-            cebra_time3_model = CEBRA(model_architecture='offset10-model',
-                            batch_size=512,
-                            learning_rate=3e-4,
-                            temperature=1,
-                            output_dimension=3,
-                            max_iterations=max_iterations,
-                            distance='cosine',
-                            conditional='time',
-                            device='cuda_if_available',
-                            verbose=True,
-                            time_offsets=10)
+    max_iterations = 10000 #default is 5000.
+    # max_iterations = 5000 #default is 5000.
 
-            cebra_time3_model.fit(X_train)
-            print('finished fitting time model')
+    # will use k-folds with 10 splits
+    n_splits = 10
+    # kf = KFold(n_splits=n_splits, shuffle=False)
+    n_timesteps = inputs.shape[0]
+    num_windows = 1000
+    folds = create_folds(n_timesteps, num_folds=n_splits, num_windows=num_windows)
+
+    folds_file_name = f'folds_goal{goal}_ws{window_size}'
+    folds_file_path = os.path.join(data_dir, folds_file_name + '.pkl')
+    with open(folds_file_path, 'wb') as f:
+        pickle.dump(folds, f)
+
+    # for i, (train_index, test_index) in enumerate(kf.split(inputs)):
+    for i, (train_index, test_index) in enumerate(folds):
+
+        print(f'Fold {i+1} of {n_splits}')
+        X_train, X_test = inputs[train_index,:], inputs[test_index,:]
         
-            cebra_file_name = f'cebra_time3_goal{goal}_ws{window_size}_fold{i+1}.pt'
-            cebra_file_path = os.path.join(cebra_model_dir, cebra_file_name)
-            # need to convert any double backslashes to forward slashes      
-            # cebra_file_path = cebra_file_path.replace("\\", "/")        
-            cebra_time3_model.save(cebra_file_path)
+        ################## TIME-ONLY MODEL ########################
+        cebra_time3_model = CEBRA(model_architecture='offset10-model',
+                        batch_size=512,
+                        learning_rate=3e-4,
+                        temperature=1,
+                        output_dimension=3,
+                        max_iterations=max_iterations,
+                        distance='cosine',
+                        conditional='time',
+                        device='cuda_if_available',
+                        verbose=True,
+                        time_offsets=10)
 
-            ################ SHUFFLED TIME ##################
-            cebra_time_shuffled3_model = CEBRA(model_architecture='offset10-model',
-                            batch_size=512,
-                            learning_rate=3e-4,
-                            temperature=1,
-                            output_dimension=3,
-                            max_iterations=max_iterations,
-                            distance='cosine',
-                            conditional='time',
-                            device='cuda_if_available',
-                            verbose=True,
-                            time_offsets=10)
+        cebra_time3_model.fit(X_train)
+        print('finished fitting time model')
+    
+        cebra_file_name = f'cebra_time3_goal{goal}_ws{window_size}_fold{i+1}.pt'
+        cebra_file_path = os.path.join(cebra_model_dir, cebra_file_name)
+        # need to convert any double backslashes to forward slashes      
+        # cebra_file_path = cebra_file_path.replace("\\", "/")        
+        cebra_time3_model.save(cebra_file_path)
 
-            X_train_shuffled = np.random.permutation(X_train)
-            cebra_time_shuffled3_model.fit(X_train_shuffled)
-            print('finished fitting time-shuffle model')
+        ################ SHUFFLED TIME ##################
+        cebra_time_shuffled3_model = CEBRA(model_architecture='offset10-model',
+                        batch_size=512,
+                        learning_rate=3e-4,
+                        temperature=1,
+                        output_dimension=3,
+                        max_iterations=max_iterations,
+                        distance='cosine',
+                        conditional='time',
+                        device='cuda_if_available',
+                        verbose=True,
+                        time_offsets=10)
 
-            cebra_file_name = f'cebra_time_shuffled3_goal{goal}_ws{window_size}_fold{i+1}.pt'
-            cebra_file_path = os.path.join(cebra_model_dir, cebra_file_name)
-            # need to convert any double backslashes to forward slashes      
-            # cebra_file_path = cebra_file_path.replace("\\", "/")        
-            cebra_time_shuffled3_model.save(cebra_file_path)
+        X_train_shuffled = np.random.permutation(X_train)
+        cebra_time_shuffled3_model.fit(X_train_shuffled)
+        print('finished fitting time-shuffle model')
+
+        cebra_file_name = f'cebra_time_shuffled3_goal{goal}_ws{window_size}_fold{i+1}.pt'
+        cebra_file_path = os.path.join(cebra_model_dir, cebra_file_name)
+        # need to convert any double backslashes to forward slashes      
+        # cebra_file_path = cebra_file_path.replace("\\", "/")        
+        cebra_time_shuffled3_model.save(cebra_file_path)
+
+
+
+if __name__ == "__main__":
+    main()
+    
 
             
         
