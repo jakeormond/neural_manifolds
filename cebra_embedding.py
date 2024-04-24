@@ -20,8 +20,9 @@ import pickle
 
 def create_folds(n_timesteps, num_folds=5, num_windows=10):
     n_windows_total = num_folds * num_windows
-    window_size = n_timesteps // n_windows_total
-    window_start_ind = np.arange(0, n_timesteps-window_size, window_size)
+    window_size = n_timesteps / n_windows_total
+
+    window_start_ind = np.round(np.arange(0, n_windows_total) * window_size)
 
     folds = []
 
@@ -29,10 +30,15 @@ def create_folds(n_timesteps, num_folds=5, num_windows=10):
         test_windows = np.arange(i, n_windows_total, num_folds)
         test_ind = []
         for j in test_windows:
-            test_ind.extend(np.arange(window_start_ind[j], window_start_ind[j] + window_size))
+            test_ind.extend(np.int32(np.arange(window_start_ind[j], window_start_ind[j] + window_size)))
+
+        # remove any test_ind that greater than n_timesteps-1
+        test_ind = [ind for ind in test_ind if ind < n_timesteps]
+        
         train_ind = list(set(range(n_timesteps)) - set(test_ind))
 
         folds.append((train_ind, test_ind))
+
 
     return folds
 
