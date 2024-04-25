@@ -10,7 +10,7 @@ import cebra
 import torch
 from cebra import CEBRA
 from sklearn.model_selection import KFold
-from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
+from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier, PredefinedSplit
 import sklearn.metrics
 import pickle
 
@@ -39,38 +39,15 @@ def create_folds(n_timesteps, num_folds=5, num_windows=10):
 
         folds.append((train_ind, test_ind))
 
-
     return folds
 
+def create_folds_indicator(folds):
+    n_timesteps = np.sum([len(test_ind) for train_ind, test_ind in folds])
+    indicator = np.zeros(n_timesteps)
+    for train_ind, test_ind in folds:
+        indicator[test_ind] = 1
 
-def create_folds_v2(n_timesteps, num_folds=5, num_windows=10):
-    n_windows_total = num_folds * num_windows
-    window_size = n_timesteps // n_windows_total
-    window_start_ind = np.arange(0, n_timesteps, window_size)
-
-    folds = []
-
-    for i in range(num_folds):
-        # Uniformly select test windows from the total windows
-        step_size = n_windows_total // num_windows
-        test_windows = np.arange(i, n_windows_total, step_size)
-        test_ind = []
-        for j in test_windows:
-            # Select every nth index for testing, where n is the step size
-            test_ind.extend(np.arange(window_start_ind[j], window_start_ind[j] + window_size, step_size))
-        train_ind = list(set(range(n_timesteps)) - set(test_ind))
-
-        folds.append((train_ind, test_ind))
-
-    # As a sanity check, plot the distribution of the test indices
-    # fig, ax = plt.subplots()
-    # ax.hist(train_ind, label='train')
-    # ax.hist(test_ind, label='test')
-    # ax.legend()
-    # plt.show()
-
-    return folds
-
+    return indicator
 
 
 def decoding_pos_dir(emb_train, emb_test, label_train, label_test, n_neighbors=36):
@@ -157,7 +134,13 @@ if __name__ == "__main__":
     n_timesteps = inputs.shape[0]
     folds = create_folds(n_timesteps, num_folds=n_splits, num_windows=num_windows)
 
-    folds_v2 = create_folds_v2(n_timesteps, num_folds=n_splits, num_windows=num_windows)
+    # Create the fold indicator array
+    fold_indicator = create_folds_indicator(folds)
+
+    # Create the PredefinedSplit
+    ps = PredefinedSplit(test_fold=fold_indicator)
+
+
 
     # save folds as pickle file
     folds_file_path = os.path.join(cebra_model_dir, f'folds_goal{goal}_ws{window_size}.pkl')
