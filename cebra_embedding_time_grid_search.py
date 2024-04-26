@@ -9,10 +9,11 @@ import os
 import cebra
 import torch
 from cebra import CEBRA
-from sklearn.model_selection import KFold, ParameterGrid, PredefinedSplit, ParameterSampler
+from sklearn.model_selection import KFold, ParameterGrid, PredefinedSplit, ParameterSampler, RandomizedSearchCV
 from sklearn.pipeline import Pipeline
 from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
 from sklearn.base import BaseEstimator
+import scipy.ndimage
 
 import sklearn.metrics
 import pickle
@@ -23,45 +24,9 @@ from cebra_embedding import create_folds, create_folds_indicator
 # from utilities.get_directories import get_data_dir
 
 
-def decoding_pos_dir(emb_train, emb_test, label_train, label_test, n_neighbors=36):
-    pos_decoder = KNeighborsRegressor(n_neighbors, metric = 'cosine')
-    dir_decoder = KNeighborsClassifier(n_neighbors, metric = 'cosine')
-
-    pos_decoder.fit(emb_train, label_train[:,0])
-    dir_decoder.fit(emb_train, label_train[:,1])
-
-    pos_pred = pos_decoder.predict(emb_test)
-    dir_pred = dir_decoder.predict(emb_test)
-
-    prediction =np.stack([pos_pred, dir_pred],axis = 1)
-
-    test_score = sklearn.metrics.r2_score(label_test[:,:2], prediction)
-    pos_test_err = np.median(abs(prediction[:,0] - label_test[:, 0]))
-    pos_test_score = sklearn.metrics.r2_score(label_test[:, 0], prediction[:,0])
-
-    return test_score, pos_test_err, pos_test_score
-
-
-def decoding_pos(emb_train, emb_test, label_train, label_test, n_neighbors=36):
-    pos_decoder = KNeighborsRegressor(n_neighbors, metric = 'cosine')
-
-    pos_decoder.fit(emb_train, label_train)
-
-    pos_pred = pos_decoder.predict(emb_test)
-
-    # pos_test_err = np.median(abs(prediction - label_test[:, 0]))
-    euclidean_error = np.sqrt(np.sum((pos_pred - label_test)**2, axis=1))
-    pos_test_err = np.median(euclidean_error)
-    
-    pos_test_x_score = sklearn.metrics.r2_score(label_test[:, 0], prediction[:,0])
-    pos_test_y_score = sklearn.metrics.r2_score(label_test[:, 1], prediction[:,1])
-
-    return pos_test_err, pos_test_x_score, pos_test_y_score
-
-
 class CustomCEBRA(BaseEstimator):
     def __init__(self, model_architecture='offset10-model', batch_size=512, learning_rate=3e-4, 
-                 temperature=1, output_dimension=3, max_iterations=10000, distance='cosine', 
+                 temperature=1, output_dimension=3, max_iterations=1, distance='cosine', 
                  conditional='time', device='cuda_if_available', verbose=True, time_offsets=10):
         
         self.model_architecture = model_architecture
@@ -98,24 +63,37 @@ class CustomCEBRA(BaseEstimator):
 
 
 def main():
-    animal = 'Rat46'
-    session = '19-02-2024'
-
+    
     data_dir = '/ceph/scratch/jakeo/honeycomb_neural_data/rat_7/6-12-2019/'
-    spike_dir = os.path.join(data_dir, 'physiology_data')
+    # data_dir = 'D:/analysis/carlas_windowed_data/honeycomb_neural_data/rat_7/6-12-2019/'
+
     dlc_dir = os.path.join(data_dir, 'positional_data')
     labels = np.load(f'{dlc_dir}/labels_1203_with_dist2goal_scale_data_False_zscore_data_False_overlap_False_window_size_250.npy')
+    labels_for_umap = labels[:, 0:6]
+    labels_for_umap = scipy.ndimage.gaussian_filter(labels_for_umap, 2, axes=0)
+
+    label_df = pd.DataFrame(labels_for_umap,
+                            columns=['x', 'y', 'dist2goal', 'angle_sin', 'angle_cos', 'dlc_angle_zscore'])
+    #z=score dist2goal
+    labels = scipy.stats.zscore(label_df['dist2goal'])
+    # convert to array
+    labels = labels.values
+
+    spike_dir = os.path.join(data_dir, 'physiology_data')
     spike_data = np.load(f'{spike_dir}/inputs_overlap_False_window_size_250.npy')
 
     # load convert inputs to torch tensor
     inputs = torch.tensor(spike_data, dtype=torch.float32)  
 
 
-    # # Define the CEBRA model
+    # Define the CEBRA model
     cebra_model = CustomCEBRA()
 
+    # Define the knn regressor
+    knn = KNeighborsRegressor()
+
     # Define the pipeline
-    pipe = Pipeline(steps=[('customcebra', cebra_model)])
+    pipe = Pipeline(steps=[('customcebra', cebra_model), ('knn', knn)])
 
     # Define the hyperparameters to tune
     param_distributions = {
@@ -124,59 +102,41 @@ def main():
         'customcebra__output_dimension': [2, 3, 4, 5, 6, 7, 8],
         'customcebra__batch_size': [256, 512, 1024],
         'customcebra__learning_rate': [3e-5, 3e-4, 3e-3, 3e-2, 3e-2],
-        # Add other hyperparameters here
+        'knn__n_neighbors': [2, 5, 10, 20, 30, 40, 50, 60, 70],
+        'knn__metric': ['cosine', 'euclidean', 'minkowski'], 
     }
 
-    sampler = ParameterSampler(param_distributions, n_iter=200, random_state=0)
-
-    # Create a grid of hyperparameter combinations
-    # param_combinations = list(ParameterGrid(param_grid))    
-
-    # subsample 200 random combinations
-    # param_combinations = np.random.choice(param_combinations, 200, replace=False)
-    
-    ########### TRAIN THE CEBRA MODEL ###############
-    # cebra_model_dir = os.path.join(data_dir, 'cebra')
-    cebra_model_dir = data_dir
-    
-    max_iterations = 10000 #default is 5000.
-    # max_iterations = 5000 #default is 5000.
-
+ 
     # will use k-folds with 10 splits
     n_splits = 10
-    # kf = KFold(n_splits=n_splits, shuffle=False)
     n_timesteps = inputs.shape[0]
     num_windows = 1000
     folds = create_folds(n_timesteps, num_folds=n_splits, num_windows=num_windows)
-    # folds_file_name = f'folds_goal{goal}_ws{window_size}'
     folds_file_name = 'custom_folds'
     folds_file_path = os.path.join(data_dir, folds_file_name + '.pkl')
     with open(folds_file_path, 'wb') as f:
         pickle.dump(folds, f)
 
+    #
+    search = RandomizedSearchCV(pipe, param_distributions, n_iter=200, cv=folds, scoring='r2', n_jobs=-1, random_state=0)
+
+    search.fit(inputs, labels)
+
+    # get current date and time
+    from datetime import datetime
+    now = datetime.now()
+    date_time = now.strftime("%m-%d-%Y_%H-%M-%S")   
     
-    for params in sampler:        
+    # save the search
+    search_file_name = f'grid_search_{date_time}'
+    search_file_path = os.path.join(data_dir, search_file_name + '.pkl')
+    with open(search_file_path, 'wb') as f:
+        pickle.dump(search, f)
+    
 
-        # Set the parameters of the pipeline
-        pipe.set_params(**params)
 
-        for i, (train_index, test_index) in enumerate(folds):
 
-            print(f'Fold {i+1} of {n_splits}')
-            X_train, X_test = inputs[train_index,:], inputs[test_index,:]
-            y_train, y_test = labels[train_index,:], labels[test_index,:]
-            
-            # Fit the model
-            pipe.fit(X_train, y_train)
-            print('finished fitting time model')
 
-            # score the pipeline on the test data
-            score = pipe.score(X_test, y_test)
-
-            # print the score
-            print(f'Score for fold{i}: {score}')
-        
-            
             
 
 

@@ -10,7 +10,7 @@ import cebra
 import torch
 from cebra import CEBRA
 from sklearn.model_selection import KFold
-from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier, PredefinedSplit
+from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
 import sklearn.metrics
 import pickle
 
@@ -34,8 +34,11 @@ def create_folds(n_timesteps, num_folds=5, num_windows=10):
 
         # remove any test_ind that greater than n_timesteps-1
         test_ind = [ind for ind in test_ind if ind < n_timesteps]
+        # make test_ind an array
+        test_ind = np.array(test_ind)
         
         train_ind = list(set(range(n_timesteps)) - set(test_ind))
+        train_ind = np.array(train_ind)
 
         folds.append((train_ind, test_ind))
 
