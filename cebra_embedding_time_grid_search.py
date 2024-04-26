@@ -18,7 +18,7 @@ import scipy.ndimage
 import sklearn.metrics
 import pickle
 
-from cebra_embedding import create_folds, create_folds_indicator
+from cebra_embedding import create_folds
 
 # sys.path.append('C:/Users/Jake/Documents/python_code/robot_maze_analysis_code')
 # from utilities.get_directories import get_data_dir
@@ -118,9 +118,10 @@ def main():
         pickle.dump(folds, f)
 
     #
-    search = RandomizedSearchCV(pipe, param_distributions, n_iter=200, cv=folds, scoring='r2', n_jobs=-1, random_state=0)
+    clf = RandomizedSearchCV(pipe, param_distributions, n_iter=200, cv=folds, scoring='r2', n_jobs=-1, random_state=0)
 
-    search.fit(inputs, labels)
+    search = clf.fit(inputs, labels)
+    search.best_params_
 
     # get current date and time
     from datetime import datetime
