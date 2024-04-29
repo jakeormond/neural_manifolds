@@ -1,4 +1,5 @@
 import sys
+import logging
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -14,8 +15,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
 from sklearn.base import BaseEstimator
 import scipy.ndimage
-
-import sklearn.metrics
+from sklearn.metrics import make_scorer, r2_score
 import pickle
 
 from cebra_embedding import create_folds
@@ -26,7 +26,7 @@ from cebra_embedding import create_folds
 
 class CustomCEBRA(BaseEstimator):
     def __init__(self, model_architecture='offset10-model', batch_size=512, learning_rate=3e-4, 
-                 temperature=1, output_dimension=3, max_iterations=1, distance='cosine', 
+                 temperature=1, output_dimension=3, max_iterations=10000, distance='cosine', 
                  conditional='time', device='cuda_if_available', verbose=True, time_offsets=10):
         
         self.model_architecture = model_architecture
@@ -60,6 +60,18 @@ class CustomCEBRA(BaseEstimator):
 
     def transform(self, X):
         return self.model_.transform(X)
+
+
+class Logger:
+    def __init__(self):
+        self.iteration_number = 0
+
+    def log_and_score(self, y_true, y_pred):
+        # Access the iteration_number variable defined outside the function
+        self.iteration_number += 1
+        score = r2_score(y_true, y_pred)
+        logging.info(f'Finished iteration {self.iteration_number} with score: {score}')
+        return score
 
 
 def main():
@@ -117,16 +129,19 @@ def main():
     with open(folds_file_path, 'wb') as f:
         pickle.dump(folds, f)
 
-    #
-    clf = RandomizedSearchCV(pipe, param_distributions, n_iter=200, cv=folds, scoring='r2', n_jobs=-1, random_state=0)
-
-    search = clf.fit(inputs, labels)
-    search.best_params_
-
     # get current date and time
     from datetime import datetime
     now = datetime.now()
-    date_time = now.strftime("%m-%d-%Y_%H-%M-%S")   
+    date_time = now.strftime("%m-%d-%Y_%H-%M-%S") 
+
+    # set up logging
+    logging.basicConfig(filename=f'grid_search_{date_time}.log', level=logging.DEBUG)
+    
+    # Define the grid search
+    logger = Logger()
+    scorer = make_scorer(logger.log_and_score)
+    clf = RandomizedSearchCV(pipe, param_distributions, n_iter=200, cv=folds, scoring=scorer, n_jobs=-1, random_state=0, verbose=3)
+    search = clf.fit(inputs, labels)
     
     # save the search
     search_file_name = f'grid_search_{date_time}'
@@ -134,13 +149,6 @@ def main():
     with open(search_file_path, 'wb') as f:
         pickle.dump(search, f)
     
-
-
-
-
-            
-
-
 
 if __name__ == "__main__":
     main()
