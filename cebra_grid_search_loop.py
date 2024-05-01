@@ -1,4 +1,5 @@
 import sys
+from datetime import datetime
 import logging
 import numpy as np
 import matplotlib.pyplot as plt
@@ -76,6 +77,9 @@ class Logger:
 
 def main():
     
+    # create model directory
+    model_dir = '/ceph/scratch/jakeo/honeycomb_neural_data/models/'
+
     data_dir = '/ceph/scratch/jakeo/honeycomb_neural_data/rat_7/6-12-2019/'
     # data_dir = 'D:/analysis/carlas_windowed_data/honeycomb_neural_data/rat_7/6-12-2019/'
 
@@ -97,7 +101,6 @@ def main():
     # load convert inputs to torch tensor
     inputs = torch.tensor(spike_data, dtype=torch.float32)  
 
-
     # Define the CEBRA model
     cebra_model = CustomCEBRA()
 
@@ -117,7 +120,6 @@ def main():
         'knn__n_neighbors': [2, 5, 10, 20, 30, 40, 50, 60, 70],
         'knn__metric': ['cosine', 'euclidean', 'minkowski'], 
     }
-
  
     # will use k-folds with 10 splits
     n_splits = 10
@@ -125,34 +127,39 @@ def main():
     num_windows = 1000
     folds = create_folds(n_timesteps, num_folds=n_splits, num_windows=num_windows)
     folds_file_name = 'custom_folds'
-    folds_file_path = os.path.join(data_dir, folds_file_name + '.pkl')
+    folds_file_path = os.path.join(model_dir, folds_file_name + '.pkl')
     with open(folds_file_path, 'wb') as f:
         pickle.dump(folds, f)
 
-    # get current date and time
-    from datetime import datetime
-    now = datetime.now()
-    date_time = now.strftime("%m-%d-%Y_%H-%M-%S") 
-
-    # create model directory
-    model_dir = '/ceph/scratch/jakeo/models/'
+    n_loops = 3 # number of loops to run the grid search, with each grid search having 10 iterations, for 200 total
 
     # set up logging
-    log_file = os.path.join(data_dir, f'grid_search_{date_time}.log')
+    now = datetime.now()
+    date_time = now.strftime("%m-%d-%Y_%H-%M-%S") 
+    log_file = os.path.join(model_dir, f'grid_search_{date_time}.log')
     logging.basicConfig(filename=log_file, level=logging.DEBUG)
+    logging.debug("Logging setup complete")
     # logging.basicConfig(filename=f'grid_search_{date_time}.log', level=logging.DEBUG)
     
-    # Define the grid search
-    logger = Logger()
-    scorer = make_scorer(logger.log_and_score)
-    clf = RandomizedSearchCV(pipe, param_distributions, n_iter=200, cv=folds, scoring=scorer, n_jobs=-1, random_state=0, verbose=3)
-    search = clf.fit(inputs, labels)
-    
-    # save the search
-    search_file_name = f'grid_search_{date_time}'
-    search_file_path = os.path.join(data_dir, search_file_name + '.pkl')
-    with open(search_file_path, 'wb') as f:
-        pickle.dump(search, f)
+    for i in range(n_loops):
+        print(f'Running loop {i+1} of {n_loops}')
+        # run_grid_search(pipe, param_distributions, inputs, labels, folds, model_dir)
+        
+        # Define the grid search
+        logger = Logger()
+        scorer = make_scorer(logger.log_and_score)
+        clf = RandomizedSearchCV(pipe, param_distributions, n_iter=10, cv=folds, scoring=scorer, n_jobs=-1, random_state=0)
+        logging.debug("Starting RandomizedSearchCV")
+        search = clf.fit(inputs, labels)
+        
+        # get current date and time
+        now = datetime.now()
+        date_time = now.strftime("%m-%d-%Y_%H-%M-%S")         
+        # save the search
+        search_file_name = f'grid_search_{date_time}'
+        search_file_path = os.path.join(model_dir, search_file_name + '.pkl')
+        with open(search_file_path, 'wb') as f:
+            pickle.dump(search, f)
     
 
 if __name__ == "__main__":
