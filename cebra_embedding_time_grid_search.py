@@ -1,5 +1,5 @@
 import sys
-import logging
+# import logging
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -26,7 +26,7 @@ from cebra_embedding import create_folds
 
 class CustomCEBRA(BaseEstimator):
     def __init__(self, model_architecture='offset10-model', batch_size=512, learning_rate=3e-4, 
-                 temperature=1, output_dimension=3, max_iterations=10, distance='cosine', 
+                 temperature=1, output_dimension=3, max_iterations=5000, distance='cosine', 
                  conditional='time', device='cuda_if_available', verbose=True, time_offsets=10):
         
         self.model_architecture = model_architecture
@@ -63,14 +63,16 @@ class CustomCEBRA(BaseEstimator):
 
 
 class Logger:
-    def __init__(self):
-        self.iteration_number = 0
+    
+    def __init__(self, log_file):
+        # self.iteration_number = 0 # can only count iterations if running search serially, not in parallel
+        self.log_file = log_file
 
     def log_and_score(self, y_true, y_pred):
-        # Access the iteration_number variable defined outside the function
-        self.iteration_number += 1
+        
         score = r2_score(y_true, y_pred)
-        logging.info(f'Finished iteration {self.iteration_number} with score: {score}')
+        with open(self.log_file, 'a') as f:
+            f.write(f'Finished iteration with score: {score}\n')
         return score
 
 
@@ -78,6 +80,8 @@ def main():
     
     data_dir = '/ceph/scratch/jakeo/honeycomb_neural_data/rat_7/6-12-2019/'
     # data_dir = 'D:/analysis/carlas_windowed_data/honeycomb_neural_data/rat_7/6-12-2019/'
+    # create model directory
+    model_dir = '/ceph/scratch/jakeo/honeycomb_neural_data/models/'
 
     dlc_dir = os.path.join(data_dir, 'positional_data')
     labels = np.load(f'{dlc_dir}/labels_1203_with_dist2goal_scale_data_False_zscore_data_False_overlap_False_window_size_250.npy')
@@ -86,7 +90,7 @@ def main():
 
     label_df = pd.DataFrame(labels_for_umap,
                             columns=['x', 'y', 'dist2goal', 'angle_sin', 'angle_cos', 'dlc_angle_zscore'])
-    #z=score dist2goal
+    # z-score dist2goal
     labels = scipy.stats.zscore(label_df['dist2goal'])
     # convert to array
     labels = labels.values
@@ -94,9 +98,8 @@ def main():
     spike_dir = os.path.join(data_dir, 'physiology_data')
     spike_data = np.load(f'{spike_dir}/inputs_overlap_False_window_size_250.npy')
 
-    # load convert inputs to torch tensor
+    # convert inputs to torch tensor
     inputs = torch.tensor(spike_data, dtype=torch.float32)  
-
 
     # Define the CEBRA model
     cebra_model = CustomCEBRA()
@@ -118,41 +121,46 @@ def main():
         'knn__metric': ['cosine', 'euclidean', 'minkowski'], 
     }
 
- 
-    # will use k-folds with 10 splits
-    n_splits = 10
-    n_timesteps = inputs.shape[0]
-    num_windows = 1000
-    folds = create_folds(n_timesteps, num_folds=n_splits, num_windows=num_windows)
-    folds_file_name = 'custom_folds'
-    folds_file_path = os.path.join(data_dir, folds_file_name + '.pkl')
-    with open(folds_file_path, 'wb') as f:
-        pickle.dump(folds, f)
-
     # get current date and time
     from datetime import datetime
     now = datetime.now()
     date_time = now.strftime("%m-%d-%Y_%H-%M-%S") 
 
-    # create model directory
-    model_dir = '/ceph/scratch/jakeo/models/'
+    # will use k-folds with 10 splits
+    n_splits = 10
+    n_timesteps = inputs.shape[0]
+    num_windows = 1000
+    folds = create_folds(n_timesteps, num_folds=n_splits, num_windows=num_windows)
+    folds_file_name = f'custom_folds_{date_time}'
+    folds_file_path = os.path.join(model_dir, folds_file_name + '.pkl')
+    with open(folds_file_path, 'wb') as f:
+        pickle.dump(folds, f)
+
 
     # set up logging
-    log_file = os.path.join(data_dir, f'grid_search_{date_time}.log')
-    logging.basicConfig(filename=log_file, level=logging.DEBUG)
+    log_file = os.path.join(model_dir, f'grid_search_{date_time}.log')
     # logging.basicConfig(filename=f'grid_search_{date_time}.log', level=logging.DEBUG)
     
     # Define the grid search
-    logger = Logger()
+    logger = Logger(log_file)
+
     scorer = make_scorer(logger.log_and_score)
-    clf = RandomizedSearchCV(pipe, param_distributions, n_iter=200, cv=folds, scoring=scorer, n_jobs=-1, random_state=0, verbose=3)
+    clf = RandomizedSearchCV(pipe, param_distributions, n_iter=2, cv=folds, scoring=scorer, n_jobs=-1, random_state=0, verbose=3)
     search = clf.fit(inputs, labels)
     
     # save the search
-    search_file_name = f'grid_search_{date_time}'
-    search_file_path = os.path.join(data_dir, search_file_name + '.pkl')
+    search_file_name = f'grid_search_model_{date_time}'
+    search_file_path = os.path.join(model_dir, search_file_name + '.pkl')
     with open(search_file_path, 'wb') as f:
         pickle.dump(search, f)
+
+    # print "saved_model"
+    print("saved_model")
+
+    # print best parameters
+    print(search.best_params_)
+    print(search.best_score_)
+
     
 
 if __name__ == "__main__":
