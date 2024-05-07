@@ -2,10 +2,7 @@ import sys
 from datetime import datetime
 import logging
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
 import pandas as pd
-from matplotlib.collections import LineCollection
 import os
 # import cebra.datasets
 import cebra
@@ -21,13 +18,9 @@ import pickle
 
 from cebra_embedding import create_folds
 
-# sys.path.append('C:/Users/Jake/Documents/python_code/robot_maze_analysis_code')
-# from utilities.get_directories import get_data_dir
-
-
 class CustomCEBRA(BaseEstimator):
     def __init__(self, model_architecture='offset10-model', batch_size=512, learning_rate=3e-4, 
-                 temperature=1, output_dimension=3, max_iterations=10, distance='cosine', 
+                 temperature=1, output_dimension=3, max_iterations=10000, distance='cosine', 
                  conditional='time', device='cuda_if_available', verbose=True, time_offsets=10):
         
         self.model_architecture = model_architecture
@@ -76,6 +69,12 @@ class Logger:
 
 
 def main():
+    
+    # check if pytorch has access to GPU
+    print(torch.cuda.is_available())
+    print(torch.cuda.current_device())
+    print(torch.cuda.device_count())
+    print(torch.cuda.get_device_name(torch.cuda.current_device()))
     
     # create model directory
     model_dir = '/ceph/scratch/jakeo/honeycomb_neural_data/models/'
@@ -148,7 +147,7 @@ def main():
         # Define the grid search
         logger = Logger()
         scorer = make_scorer(logger.log_and_score)
-        clf = RandomizedSearchCV(pipe, param_distributions, n_iter=10, cv=folds, scoring=scorer, n_jobs=-1, random_state=0)
+        clf = RandomizedSearchCV(pipe, param_distributions, n_iter=200, cv=folds, scoring=scorer, n_jobs=-1, random_state=0)
         logging.debug("Starting RandomizedSearchCV")
         search = clf.fit(inputs, labels)
         

@@ -1,11 +1,11 @@
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sns
+# import seaborn as sns
 import pandas as pd
-from matplotlib.collections import LineCollection
+# from matplotlib.collections import LineCollection
 import os
-import cebra.datasets
+# import cebra.datasets
 import cebra
 import torch
 from cebra import CEBRA
