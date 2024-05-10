@@ -113,10 +113,10 @@ def main():
     pipe = Pipeline(steps=[('customcebra', cebra_model), ('knn', knn)])
 
     # Define the hyperparameters to tune
-    # 'customcebra__output_dimension': [2, 3, 4, 5, 6, 7, 8]
+    # 'customcebra__output_dimension': [2, 3, 4, 5, 6, 7, 8, 9, 10]
     # param_distributions = {
     #    'customcebra__temperature': [0.11, 0.21, 1.2, 3.21],
-    #    'customcebra__time_offsets': [1, 2, 3],
+    #    'customcebra__time_offsets': [1, 3, 5, 7, 10, 15],
     #    'customcebra__output_dimension': [3, 4, 5, 6, 7, 8, 9],
     #    'customcebra__batch_size': [256, 512, 1024],
     #    'customcebra__learning_rate': [3e-5, 3e-4, 3e-3, 3e-2, 3e-2],
