@@ -16,6 +16,7 @@ from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
 from sklearn.base import BaseEstimator
 import scipy.ndimage
 from sklearn.metrics import make_scorer, r2_score
+from skopt import BayesSearchCV
 import pickle
 
 from cebra_embedding import create_folds
@@ -26,7 +27,7 @@ from cebra_embedding import create_folds
 
 class CustomCEBRA(BaseEstimator):
     def __init__(self, model_architecture='offset10-model', batch_size=512, learning_rate=3e-4, 
-                 temperature=1, output_dimension=3, max_iterations=10000, distance='cosine', 
+                 temperature=1, output_dimension=3, max_iterations=10, distance='cosine', 
                  conditional='time', device='cuda_if_available', verbose=True, time_offsets=10):
         
         self.model_architecture = model_architecture
@@ -84,31 +85,20 @@ def main():
     print(torch.cuda.device_count())
     print(torch.cuda.get_device_name(torch.cuda.current_device()))
 
-    animal = 'rat_9'
-    session = '10-12-2021'
+    animal = 'rat_3'
+    session = '25-3-2019'
 
     data_dir = os.path.join('/ceph/scratch/jakeo/honeycomb_neural_data/', animal, session)
-    # data_dir = '/ceph/scratch/jakeo/honeycomb_neural_data/rat_3/25-3-2019/'
-    # data_dir = '/ceph/scratch/jakeo/honeycomb_neural_data/rat_7/6-12-2019/'
-    # data_dir = 'D:/analysis/carlas_windowed_data/honeycomb_neural_data/rat_7/6-12-2019/'
+    
     # create model directory
     model_dir = os.path.join('/ceph/scratch/jakeo/honeycomb_neural_data/models/', animal)
     # model_dir = '/ceph/scratch/jakeo/honeycomb_neural_data/models/'
 
     dlc_dir = os.path.join(data_dir, 'positional_data')
-    labels = np.load(f'{dlc_dir}/labels_1203_with_dist2goal_scale_data_False_zscore_data_False_overlap_False_window_size_250.npy')
-    labels_for_umap = labels[:, 0:6]
-    labels_for_umap = scipy.ndimage.gaussian_filter(labels_for_umap, 2, axes=0)
-
-    label_df = pd.DataFrame(labels_for_umap,
-                            columns=['x', 'y', 'dist2goal', 'angle_sin', 'angle_cos', 'dlc_angle_zscore'])
-    # z-score dist2goal
-    labels = scipy.stats.zscore(label_df['dist2goal'])
-    # convert to array
-    labels = labels.values
+    labels = np.load(f'{dlc_dir}/labels_250.npy')
 
     spike_dir = os.path.join(data_dir, 'physiology_data')
-    spike_data = np.load(f'{spike_dir}/inputs_overlap_False_window_size_250.npy')
+    spike_data = np.load(f'{spike_dir}/inputs_250.npy')
 
     # convert inputs to torch tensor
     inputs = torch.tensor(spike_data, dtype=torch.float32)  
@@ -124,15 +114,26 @@ def main():
 
     # Define the hyperparameters to tune
     # 'customcebra__output_dimension': [2, 3, 4, 5, 6, 7, 8]
+    # param_distributions = {
+    #    'customcebra__temperature': [0.11, 0.21, 1.2, 3.21],
+    #    'customcebra__time_offsets': [1, 2, 3],
+    #    'customcebra__output_dimension': [3, 4, 5, 6, 7, 8, 9],
+    #    'customcebra__batch_size': [256, 512, 1024],
+    #    'customcebra__learning_rate': [3e-5, 3e-4, 3e-3, 3e-2, 3e-2],
+    #    'knn__n_neighbors': [2, 5, 10, 20, 30, 40, 50, 60, 70],
+    #    'knn__metric': ['cosine', 'euclidean', 'minkowski'], 
+    # }
+
     param_distributions = {
-        'customcebra__temperature': [0.11, 0.21, 1.2, 3.21],
-        'customcebra__time_offsets': [1, 2, 3],
-        'customcebra__output_dimension': [3, 4, 5, 6, 7, 8, 9],
+        'customcebra__temperature': (0.11, 3.21),
+        'customcebra__time_offsets': (1, 15),
+        'customcebra__output_dimension': (3, 10),
         'customcebra__batch_size': [256, 512, 1024],
-        'customcebra__learning_rate': [3e-5, 3e-4, 3e-3, 3e-2, 3e-2],
-        'knn__n_neighbors': [2, 5, 10, 20, 30, 40, 50, 60, 70],
+        'customcebra__learning_rate': (3e-5, 3e-4, 3e-3, 3e-2, 3e-2),
+        'knn__n_neighbors': (2, 5, 10, 20, 30, 40, 50, 60, 70),
         'knn__metric': ['cosine', 'euclidean', 'minkowski'], 
     }
+
 
     # get current date and time
     from datetime import datetime
@@ -140,15 +141,14 @@ def main():
     date_time = now.strftime("%d-%m-%Y_%H-%M-%S") 
 
     # will use k-folds with 10 splits
-    n_splits = 10
+    n_splits = 5 # 10
     n_timesteps = inputs.shape[0]
-    num_windows = 1000
+    num_windows = 340 # 1000
     folds = create_folds(n_timesteps, num_folds=n_splits, num_windows=num_windows)
     folds_file_name = f'custom_folds_{date_time}'
     folds_file_path = os.path.join(model_dir, folds_file_name + '.pkl')
     with open(folds_file_path, 'wb') as f:
         pickle.dump(folds, f)
-
 
     # set up logging
     log_file = os.path.join(model_dir, f'grid_search_{date_time}.log')
@@ -158,7 +158,8 @@ def main():
     logger = Logger(log_file)
 
     scorer = make_scorer(logger.log_and_score)
-    clf = RandomizedSearchCV(pipe, param_distributions, n_iter=200, cv=folds, scoring=scorer, n_jobs=-1, random_state=0, verbose=3)
+    # clf = RandomizedSearchCV(pipe, param_distributions, n_iter=200, cv=folds, scoring=scorer, n_jobs=-1, random_state=0, verbose=3)
+    clf = BayesSearchCV(pipe, param_distributions, n_iter=2, cv=folds, scoring=scorer, n_jobs=-1, random_state=0, verbose=3)
     search = clf.fit(inputs, labels)
     
     # save the search

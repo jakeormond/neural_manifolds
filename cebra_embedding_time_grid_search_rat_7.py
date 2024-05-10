@@ -85,8 +85,8 @@ def main():
     print(torch.cuda.device_count())
     print(torch.cuda.get_device_name(torch.cuda.current_device()))
 
-    animal = 'rat_10'
-    session = '23-11-2021'
+    animal = 'rat_7'
+    session = '6-12-2019'
 
     data_dir = os.path.join('/ceph/scratch/jakeo/honeycomb_neural_data/', animal, session)
     

@@ -98,7 +98,7 @@ def main():
     labels = np.load(f'{dlc_dir}/labels_250.npy')
 
     spike_dir = os.path.join(data_dir, 'physiology_data')
-    spike_data = np.load(f'{spike_dir}/inputs_250.npy')
+    spike_data = np.load(f'{spike_dir}/inputs_zscored_250.npy')
 
     # convert inputs to torch tensor
     inputs = torch.tensor(spike_data, dtype=torch.float32)  
