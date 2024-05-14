@@ -96,9 +96,11 @@ def main():
 
     dlc_dir = os.path.join(data_dir, 'positional_data')
     labels = np.load(f'{dlc_dir}/labels_250.npy')
+    # keep the first 2 columns and the last 2 columns
+    labels = labels[:, [0, 1, -2, -1]]
 
     spike_dir = os.path.join(data_dir, 'physiology_data')
-    spike_data = np.load(f'{spike_dir}/inputs_250.npy')
+    spike_data = np.load(f'{spike_dir}/inputs_zscored_250.npy')
 
     # convert inputs to torch tensor
     inputs = torch.tensor(spike_data, dtype=torch.float32)  
@@ -126,10 +128,10 @@ def main():
 
     param_distributions = {
         'customcebra__temperature': (0.11, 3.21),
-        'customcebra__time_offsets': (1, 15),
-        'customcebra__output_dimension': (3, 10),
+        'customcebra__time_offsets': (1, 10),
+        'customcebra__output_dimension': (3, 15),
         'customcebra__batch_size': [256, 512, 1024],
-        'customcebra__learning_rate': (3e-5, 3e-2),
+        'customcebra__learning_rate': (1e-5, 1e-2),
         'knn__n_neighbors': (2, 70),
         'knn__metric': ['cosine', 'euclidean', 'minkowski'], 
     }
