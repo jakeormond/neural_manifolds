@@ -19,24 +19,45 @@ def main():
     for a in animals:
         animal_dir = os.path.join(model_dir, a)
 
-        for z in range(2):
+        for z in range(3):
             if z == 0:
                 grid_dir = os.path.join(animal_dir, 'non_z_scored_spike_trains')
                 title = f'{a}_non_z_scored_spike_trains'
-            else:
+            elif z == 1:
                 grid_dir = os.path.join(animal_dir, 'z_scored_spike_trains')
                 title = f'{a}_z_scored_spike_trains'
+            else:
+                grid_dir = os.path.join(animal_dir, 'z_scored_spike_xy_goaldir')
+                title = f'{a}_z_scored_spike_xy_goaldir'
+            
+            # check if grid_dir exists
+            if not os.path.exists(grid_dir):
+                print(f"{grid_dir} does not exist")
+                continue
 
             # find the model pickle file in model_dir; it begins "cebra_grid_search_"
             model_files = [f for f in os.listdir(grid_dir) if f.startswith('grid_search_model_')]
-            if len(model_files) != 1:
+            if len(model_files) == 0:
+                print(f"No model files found in {model_dir}")
+                continue
+            
+            elif len(model_files) != 1:
                 raise ValueError(f"Expected 1 model file in {model_dir}, found {len(model_files)}")
+                
             model_file = model_files[0]
 
             # load the model pickle file
             model_path = os.path.join(grid_dir, model_file)
             with open(model_path, 'rb') as f:
-                model = pickle.load(f)               
+                model = pickle.load(f)            
+
+            # get the results
+            # results_df = pd.DataFrame(model.cv_results_)
+            # # order the results by rank_test_score
+            # results_df.sort_values(by='rank_test_score', inplace=True)
+            # # save the results to a csv file
+            # results_df.to_csv(os.path.join(grid_dir, 'grid_search_results.csv'), index=False)
+
 
             # find the best parameters
             best_params = model.best_params_
