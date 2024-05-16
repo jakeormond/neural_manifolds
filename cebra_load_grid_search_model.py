@@ -6,9 +6,6 @@ from sklearn.metrics import r2_score
 from cebra_embedding_time_grid_search import CustomCEBRA, Logger # needed because I saved the model as a pickle file
 
 
-
-
-
 def main():   
 
     animals = ['rat_3', 'rat_7', 'rat_8', 'rat_9', 'rat_10']
