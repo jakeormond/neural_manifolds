@@ -10,13 +10,13 @@ import os
 import cebra
 import torch
 from cebra import CEBRA
-from sklearn.model_selection import KFold, ParameterGrid, PredefinedSplit, ParameterSampler, RandomizedSearchCV, GridSearchCV
+from sklearn.model_selection import KFold, ParameterGrid, PredefinedSplit, ParameterSampler, RandomizedSearchCV
 from sklearn.pipeline import Pipeline
 from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
 from sklearn.base import BaseEstimator
 import scipy.ndimage
 from sklearn.metrics import make_scorer, r2_score
-# from skopt import BayesSearchCV
+from skopt import BayesSearchCV
 import pickle
 
 from cebra_embedding import create_folds
@@ -27,7 +27,7 @@ from cebra_embedding import create_folds
 
 class CustomCEBRA(BaseEstimator):
     def __init__(self, model_architecture='offset10-model', batch_size=512, learning_rate=3e-4, 
-                 temperature=1, output_dimension=3, max_iterations=100, distance='cosine', 
+                 temperature=1, output_dimension=3, max_iterations=10000, distance='cosine', 
                  conditional='time', device='cuda_if_available', verbose=True, time_offsets=10):
         
         self.model_architecture = model_architecture
@@ -65,25 +65,15 @@ class CustomCEBRA(BaseEstimator):
 
 class Logger:
     
-    def __init__(self, log_file, model_dir, counter=0):
+    def __init__(self, log_file):
         # self.iteration_number = 0 # can only count iterations if running search serially, not in parallel
         self.log_file = log_file
-        self.model_dir = model_dir
-        self.counter = counter
 
     def log_and_score(self, y_true, y_pred):
         
         score = r2_score(y_true, y_pred)
         with open(self.log_file, 'a') as f:
             f.write(f'Finished iteration with score: {score}\n')
-
-        # save y_true and y_pred
-        y_true_file = os.path.join(self.model_dir, f'y_true_{self.counter}.npy')
-        y_pred_file = os.path.join(self.model_dir, f'y_pred_{self.counter}.npy')
-        np.save(y_true_file, y_true)
-        np.save(y_pred_file, y_pred)
-        
-
         return score
 
 
@@ -98,33 +88,15 @@ def main():
     animal = 'rat_3'
     session = '25-3-2019'
 
-    # create model dir if it doesn't exits
-    model_dir = os.path.join('D:/analysis/og_honeycomb/models', animal, 'n_dimensions')
-    if not os.path.exists(model_dir):
-        os.makedirs(model_dir)
-
-    # load best model from grid search
-    # model_dir = os.path.join('/ceph/scratch/jakeo/honeycomb_neural_data/models/', animal)
-    grid_dir = os.path.join('D:/analysis/og_honeycomb/models', animal, 'z_scored_spike_xy_goaldir')
-    model_files = [f for f in os.listdir(grid_dir) if f.startswith('grid_search_model_')]
-    model_file = model_files[0]
-    model_path = os.path.join(grid_dir, model_file)
-    with open(model_path, 'rb') as f:
-        model = pickle.load(f)        
-    best_params = model.best_params_
-    print(best_params)
-
-    # load the folds from the grid_dir
-    folds_files = [f for f in os.listdir(grid_dir) if f.startswith('custom_folds')]
-    folds_file = folds_files[0]
-    folds_path = os.path.join(grid_dir, folds_file)
-    with open(folds_path, 'rb') as f:
-        folds = pickle.load(f)
-
-    # load the data
     # data_dir = os.path.join('/ceph/scratch/jakeo/honeycomb_neural_data/', animal, session)
     data_dir = os.path.join('D:/analysis/carlas_windowed_data/honeycomb_neural_data', animal, session)
     
+    # create model directory
+    # model_dir = os.path.join('/ceph/scratch/jakeo/honeycomb_neural_data/models/', animal)
+    model_dir = os.path.join('D:/analysis/og_honeycomb/models', animal, 'scratch_pad')
+
+    # model_dir = '/ceph/scratch/jakeo/honeycomb_neural_data/models/'
+
     dlc_dir = os.path.join(data_dir, 'positional_data')
     labels = np.load(f'{dlc_dir}/labels_250.npy')
     # keep the first 2 columns and the last 2 columns
@@ -145,31 +117,54 @@ def main():
     # Define the pipeline
     pipe = Pipeline(steps=[('customcebra', cebra_model), ('knn', knn)])
 
-    # Define the parameter grid
-    param_grid = best_params
-    # individual values in param grid need to be wrapped in lists
-    for key in param_grid.keys():
-        param_grid[key] = [param_grid[key]]    
+    # Define the hyperparameters to tune
+    # 'customcebra__output_dimension': [2, 3, 4, 5, 6, 7, 8, 9, 10]
+    # param_distributions = {
+    #    'customcebra__temperature': [0.11, 0.21, 1.2, 3.21],
+    #    'customcebra__time_offsets': [1, 3, 5, 7, 10, 15],
+    #    'customcebra__output_dimension': [3, 4, 5, 6, 7, 8, 9],
+    #    'customcebra__batch_size': [256, 512, 1024],
+    #    'customcebra__learning_rate': [3e-5, 3e-4, 3e-3, 3e-2, 3e-2],
+    #    'knn__n_neighbors': [2, 5, 10, 20, 30, 40, 50, 60, 70],
+    #    'knn__metric': ['cosine', 'euclidean', 'minkowski'], 
+    # }
 
-    # param_grid['customcebra__output_dimension'] = [2, 3, 4, 5, 6, 7, 8, 10, 12, 15, 20, 25, 30, 35, 40, 45, 50]
-    param_grid['customcebra__output_dimension'] = [25]
+    param_distributions = {
+        'customcebra__temperature': (0.11, 3.21),
+        'customcebra__time_offsets': (1, 10),
+        'customcebra__output_dimension': (3, 15),
+        'customcebra__batch_size': [256, 512, 1024],
+        'customcebra__learning_rate': (1e-5, 1e-2),
+        'knn__n_neighbors': (2, 70),
+        'knn__metric': ['cosine', 'euclidean', 'minkowski'], 
+    }
+
 
     # get current date and time
     from datetime import datetime
     now = datetime.now()
     date_time = now.strftime("%d-%m-%Y_%H-%M-%S") 
 
-      # set up logging
+    # will use k-folds with 10 splits
+    n_splits = 5 # 10
+    n_timesteps = inputs.shape[0]
+    num_windows = 340 # 1000
+    folds = create_folds(n_timesteps, num_folds=n_splits, num_windows=num_windows)
+    folds_file_name = f'custom_folds_{animal}_{session}_{date_time}'
+    folds_file_path = os.path.join(model_dir, folds_file_name + '.pkl')
+    with open(folds_file_path, 'wb') as f:
+        pickle.dump(folds, f)
+
+    # set up logging
     log_file = os.path.join(model_dir, f'grid_search_{animal}_{session}_{date_time}.log')
     # logging.basicConfig(filename=f'grid_search_{date_time}.log', level=logging.DEBUG)
     
     # Define the grid search
-    logger = Logger(log_file, model_dir)
+    logger = Logger(log_file)
 
     scorer = make_scorer(logger.log_and_score)
     # clf = RandomizedSearchCV(pipe, param_distributions, n_iter=200, cv=folds, scoring=scorer, n_jobs=-1, random_state=0, verbose=3)
-    # clf = BayesSearchCV(pipe, param_distributions, n_iter=200, cv=folds, scoring=scorer, n_jobs=-1, random_state=0, verbose=3)
-    clf = GridSearchCV(pipe, param_grid, cv=folds, scoring=scorer, n_jobs=-1, verbose=3)
+    clf = BayesSearchCV(pipe, param_distributions, n_iter=200, cv=folds, scoring=scorer, n_jobs=-1, random_state=0, verbose=3)
     search = clf.fit(inputs, labels)
     
     # save the search

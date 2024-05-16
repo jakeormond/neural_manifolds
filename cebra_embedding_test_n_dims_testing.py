@@ -65,24 +65,15 @@ class CustomCEBRA(BaseEstimator):
 
 class Logger:
     
-    def __init__(self, log_file, model_dir, counter=0):
+    def __init__(self, log_file):
         # self.iteration_number = 0 # can only count iterations if running search serially, not in parallel
         self.log_file = log_file
-        self.model_dir = model_dir
-        self.counter = counter
 
     def log_and_score(self, y_true, y_pred):
         
         score = r2_score(y_true, y_pred)
         with open(self.log_file, 'a') as f:
-            f.write(f'Finished iteration with score: {score}\n')
-
-        # save y_true and y_pred
-        y_true_file = os.path.join(self.model_dir, f'y_true_{self.counter}.npy')
-        y_pred_file = os.path.join(self.model_dir, f'y_pred_{self.counter}.npy')
-        np.save(y_true_file, y_true)
-        np.save(y_pred_file, y_pred)
-        
+            f.write(f'Finished iteration with score: {score}\n')       
 
         return score
 
@@ -113,6 +104,8 @@ def main():
         model = pickle.load(f)        
     best_params = model.best_params_
     print(best_params)
+    # delete model var
+    del model
 
     # load the folds from the grid_dir
     folds_files = [f for f in os.listdir(grid_dir) if f.startswith('custom_folds')]
@@ -160,23 +153,26 @@ def main():
     date_time = now.strftime("%d-%m-%Y_%H-%M-%S") 
 
       # set up logging
-    log_file = os.path.join(model_dir, f'grid_search_{animal}_{session}_{date_time}.log')
+    # log_file = os.path.join(model_dir, f'grid_search_{animal}_{session}_{date_time}.log')
     # logging.basicConfig(filename=f'grid_search_{date_time}.log', level=logging.DEBUG)
     
     # Define the grid search
-    logger = Logger(log_file, model_dir)
+    # logger = Logger(log_file)
 
-    scorer = make_scorer(logger.log_and_score)
+    # scorer = make_scorer(logger.log_and_score)
     # clf = RandomizedSearchCV(pipe, param_distributions, n_iter=200, cv=folds, scoring=scorer, n_jobs=-1, random_state=0, verbose=3)
     # clf = BayesSearchCV(pipe, param_distributions, n_iter=200, cv=folds, scoring=scorer, n_jobs=-1, random_state=0, verbose=3)
-    clf = GridSearchCV(pipe, param_grid, cv=folds, scoring=scorer, n_jobs=-1, verbose=3)
+    # clf = GridSearchCV(pipe, param_grid, cv=folds, scoring=scorer, n_jobs=-1, verbose=3)
+    clf = GridSearchCV(pipe, param_grid, cv=folds, scoring='r2', n_jobs=-1, verbose=3)
     search = clf.fit(inputs, labels)
+    # print all the parameters
+    print(search.cv_results_)
     
     # save the search
-    search_file_name = f'grid_search_model_{animal}_{session}_{date_time}'
-    search_file_path = os.path.join(model_dir, search_file_name + '.pkl')
-    with open(search_file_path, 'wb') as f:
-        pickle.dump(search, f)
+    # search_file_name = f'grid_search_model_{animal}_{session}_{date_time}'
+    # search_file_path = os.path.join(model_dir, search_file_name + '.pkl')
+    # with open(search_file_path, 'wb') as f:
+    #     pickle.dump(search, f)
 
     # print "saved_model"
     print("saved_model")
@@ -184,6 +180,28 @@ def main():
     # print best parameters
     print(search.best_params_)
     print(search.best_score_)
+
+    ###########################
+    
+
+    r2_scores = []
+    for i, (train_index, test_index) in enumerate(folds):
+        print(f'Fold {i+1} of {len(folds)}')
+        X_test = inputs[train_index,:]
+        y_test = labels[train_index,:]
+
+        # get the best model from the grid search
+        best_model = search.best_estimator_
+
+        # get the predictions 
+        y_pred = best_model.predict(X_test)
+
+        r2 = r2_score(y_test, y_pred)
+        r2_scores.append(r2)
+
+    print(r2_scores)
+    pass
+
 
     
 

@@ -16,7 +16,6 @@ def main():
 
     model_dir = os.path.join('D:/analysis/og_honeycomb/models') 
 
-    counter = 0
     for a in animals:
         animal_dir = os.path.join(model_dir, a)
         session = sessions[a]
@@ -34,10 +33,10 @@ def main():
             print(f"No model files found in {model_dir}")
             continue
         
-        elif len(model_files) != 1:
-            raise ValueError(f"Expected 1 model file in {model_dir}, found {len(model_files)}")
+        # elif len(model_files) != 1:
+        #     raise ValueError(f"Expected 1 model file in {model_dir}, found {len(model_files)}")
         
-        model_file = model_files[0]
+        model_file = model_files[1]
 
         # load the model pickle file
         model_path = os.path.join(grid_dir, model_file)
@@ -68,7 +67,7 @@ def main():
         inputs = torch.tensor(spike_data, dtype=torch.float32)  
 
         # generate predictions for each test fold and calculate the r2 score
-        r2_scores = {'all': [], 'xy': [], 'goal': [], 'x': [], 'y': [], 'goal_sin': [], 'goal_cos': []}
+        r2_scores = {'all': [], 'x': [], 'y': [], 'goal_sin': [], 'goal_cos': []}
         for i, (train_index, test_index) in enumerate(folds):
             print(f'Fold {i+1} of {len(folds)}')
             _, X_test = inputs[train_index,:], inputs[test_index,:]
@@ -80,17 +79,8 @@ def main():
             # get the predictions 
             y_pred = best_model.predict(X_test)
 
-            # r2 for all variables
             r2 = r2_score(y_test, y_pred)
             r2_scores['all'].append(r2)
-
-            # r2 for xy
-            r2 = r2_score(y_test[:, :2], y_pred[:, :2])
-            r2_scores['xy'].append(r2)
-
-            # r2 for goal
-            r2 = r2_score(y_test[:, 2:], y_pred[:, 2:])
-            r2_scores['goal'].append(r2)
 
             # r2 for x
             r2 = r2_score(y_test[:, 0], y_pred[:, 0])
@@ -107,6 +97,8 @@ def main():
             # r2 for goal_cos
             r2 = r2_score(y_test[:, 3], y_pred[:, 3])
             r2_scores['goal_cos'].append(r2)
+
+        
 
         # get the results
         results_df = pd.DataFrame(model.cv_results_)
