@@ -27,7 +27,7 @@ from cebra_embedding import create_folds
 
 class CustomCEBRA(BaseEstimator):
     def __init__(self, model_architecture='offset10-model', batch_size=512, learning_rate=3e-4, 
-                 temperature=1, output_dimension=3, max_iterations=10, distance='cosine', 
+                 temperature=1, output_dimension=3, max_iterations=10000, distance='cosine', 
                  conditional='time', device='cuda_if_available', verbose=True, time_offsets=10):
         
         self.model_architecture = model_architecture
